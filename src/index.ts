@@ -3,9 +3,11 @@ import { dirname, join } from "node:path"
 import { tool, type Plugin, type ToolContext } from "@opencode-ai/plugin"
 
 const require = createRequire(import.meta.url)
+// Resolve our direct dependency so no globally installed CLI is required.
 const playwrightCli = join(dirname(require.resolve("@playwright/cli/package.json")), "playwright-cli.js")
 
 async function execute(args: string[], context: ToolContext) {
+  // Use argv directly rather than a shell to preserve argument boundaries.
   const process = Bun.spawn({
     cmd: [playwrightCli, ...args],
     cwd: context.directory,
@@ -19,6 +21,7 @@ async function execute(args: string[], context: ToolContext) {
     new Response(process.stderr).text(),
     process.exited,
   ])
+  // Preserve CLI snapshots on success and diagnostics when the command fails.
   const output = [stdout.trim(), stderr.trim()].filter(Boolean).join("\n")
 
   if (exitCode !== 0) {
@@ -30,6 +33,7 @@ async function execute(args: string[], context: ToolContext) {
 
 const Brandobot: Plugin = async () => ({
   tool: {
+    // A single generic tool exposes the complete Playwright CLI surface.
     browser: tool({
       description:
         "Run a Playwright CLI command. Pass each token after playwright-cli in args, without a shell or the executable name. Use open before page actions; command responses include snapshots with element refs for later actions. Set session to use a persistent named browser session.",
@@ -41,6 +45,7 @@ const Brandobot: Plugin = async () => ({
         session: tool.schema.string().min(1).optional().describe("Optional Playwright CLI named session."),
       },
       async execute(input, context) {
+        // Playwright CLI namespaces browser state by an optional named session.
         const args = input.session ? [`-s=${input.session}`, ...input.args] : input.args
         return execute(args, context)
       },
