@@ -15,7 +15,7 @@ Add the published package to your OpenCode configuration:
 
 Restart OpenCode after changing its configuration. OpenCode installs the package and its Playwright CLI dependency when it starts.
 
-Playwright CLI requires Node.js 18 or later. Install its managed browsers before the first browser session with `browser({ args: ["install-browser"] })`. On Linux, pass `--with-deps` when system browser dependencies also need installing. The default CLI browser is a system Chrome installation; pass `--browser=chromium` to use Playwright-managed Chromium.
+Playwright CLI requires Node.js 20 or later. Install its managed browsers before the first browser session with `browser({ args: ["install-browser"] })`. On Linux, pass `--with-deps` when system browser dependencies also need installing. The default CLI browser is a system Chrome installation; pass `--browser=chromium` to use Playwright-managed Chromium.
 
 ## Browser Tool
 
