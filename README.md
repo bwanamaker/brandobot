@@ -53,7 +53,7 @@ browser({ args: ["open", "https://demo.playwright.dev/todomvc", "--browser=chrom
 browser({ args: ["type", "Buy groceries"] })
 browser({ args: ["press", "Enter"] })
 browser({ args: ["snapshot"] })
-browser({ args: ["screenshot"] })
+browser({ args: ["screenshot", "--filename", "artifacts/todo.png"] })
 browser({ args: ["close"] })
 ```
 

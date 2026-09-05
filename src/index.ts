@@ -62,12 +62,26 @@ function commandName(args: string[]) {
   return args[0]
 }
 
+function artifactFilename(command: string | undefined, args: string[]) {
+  if (command === "video-start") return args[1]
+  if (command !== "screenshot") return
+  return args.find((arg) => arg.startsWith("--filename="))?.slice("--filename=".length) ?? args[args.indexOf("--filename") + 1]
+}
+
+function requiresArtifactDirectory(command: string | undefined, args: string[]) {
+  if (command !== "screenshot" && command !== "video-start") return
+  const filename = artifactFilename(command, args)
+  if (filename?.includes("/") || filename?.includes("\\")) return
+  throw new Error(`Ask the user where to store the ${command === "screenshot" ? "screenshot" : "video"}, then provide a filename with that directory.`)
+}
+
 function derivedSessionName(sessionID: string, session?: string) {
   return `brandobot-${createHash("sha256").update(`${sessionID}:${session ?? ""}`).digest("hex").slice(0, 54)}`
 }
 
 export function playwrightArgs(args: string[], sessionID: string, session?: string) {
   const command = commandName(args)
+  requiresArtifactDirectory(command, args)
   if (command && restrictedCommands.has(command)) {
     throw new Error(`${command} is not available because it can access other Playwright sessions.`)
   }
@@ -139,6 +153,7 @@ const browserGuidance = `## Browser routing
 - Use browser for browser testing, navigation, interaction, DOM or accessibility inspection, screenshots, visual checks, storage, tracing, or other automated browser work. Do not attach to an existing browser or use external browser profiles/configuration.
 - For browser, open an absolute URL with --browser=chromium, then call snapshot before using element refs. Take another snapshot after page-changing actions.
 - Use webfetch to read, summarize, or extract content from a URL without browser automation.
+- Before taking a screenshot or recording video, ask where it should be stored unless the user specified a directory. Use "--filename artifacts/name.png" for screenshots or "video-start artifacts/name.webm" for video.
 - Ask a brief clarification only when a request mixes these intents or is ambiguous. Use browser with --headed only when the user explicitly requests a visible Playwright-controlled browser.`
 
 const Brandobot: Plugin = async () => ({

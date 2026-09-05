@@ -58,6 +58,16 @@ test("browser sessions default to the OpenCode conversation", () => {
     "external browser state",
   )
   expect(() => playwrightArgs(["open", "https://example.com"], "session-id", "../other")).toThrow("session names")
+  expect(() => playwrightArgs(["screenshot"], "session-id")).toThrow("Ask the user where to store the screenshot")
+  expect(() => playwrightArgs(["screenshot", "--filename", "image.png"], "session-id")).toThrow(
+    "Ask the user where to store the screenshot",
+  )
+  expect(playwrightArgs(["screenshot", "--filename", "artifacts/image.png"], "session-id")[1]).toBe("screenshot")
+  expect(playwrightArgs(["screenshot", "--filename", "artifacts\\image.png"], "session-id")[1]).toBe("screenshot")
+  expect(() => playwrightArgs(["video-start", "recording.webm"], "session-id")).toThrow(
+    "Ask the user where to store the video",
+  )
+  expect(playwrightArgs(["video-start", "artifacts/recording.webm"], "session-id")[1]).toBe("video-start")
 })
 
 test("default browser commands are platform-safe", () => {
@@ -102,4 +112,5 @@ test("plugin adds browser routing guidance", async () => {
 
   expect(output.system.join("\n")).toContain("Use open_url")
   expect(output.system.join("\n")).toContain("--browser=chromium")
+  expect(output.system.join("\n")).toContain("ask where it should be stored")
 })
