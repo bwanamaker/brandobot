@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { tmpdir } from "node:os"
 import { tool, type ToolContext } from "@opencode-ai/plugin"
 import Brandobot, {
   defaultBrowserCommand,
@@ -94,11 +95,13 @@ test("Playwright open and artifacts use isolated configuration", () => {
   const first = playwrightArgs(["open", "https://example.com"], "first-session")
   const second = playwrightArgs(["open", "https://example.com"], "second-session")
   const command = playwrightCommand(first)
-  const firstOutput = playwrightOutputDirectory("/workspace", first)
-  const secondOutput = playwrightOutputDirectory("/workspace", second)
+  const firstOutput = playwrightOutputDirectory(first)
+  const secondOutput = playwrightOutputDirectory(second)
 
   expect(command.slice(1, 4)).toEqual(["--config", expect.stringContaining("brandobot-playwright-"), "-s=" + first[0].slice(3)])
   expect(command).toContain("open")
+  expect(firstOutput.startsWith(tmpdir())).toBe(true)
+  expect(firstOutput).toContain("brandobot-playwright-")
   expect(firstOutput).toContain(first[0].slice(3))
   expect(secondOutput).toContain(second[0].slice(3))
   expect(firstOutput).not.toBe(secondOutput)

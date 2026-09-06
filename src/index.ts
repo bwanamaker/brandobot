@@ -132,16 +132,15 @@ export function playwrightCommand(args: string[]) {
   return command === "open" ? [playwrightCli, "--config", playwrightConfig, ...args] : [playwrightCli, ...args]
 }
 
-export function playwrightOutputDirectory(directory: string, args: string[]) {
+export function playwrightOutputDirectory(args: string[]) {
   const session = args.find((arg) => arg.startsWith("-s="))?.slice(3) ?? "global"
-  return join(directory, ".brandobot", "playwright", session)
+  return join(playwrightConfigDirectory, "artifacts", session)
 }
 
 async function executePlaywright(args: string[], context: ToolContext) {
   // This prevents project config and inherited Playwright settings from attaching to shared browser state.
-  const outputDirectory = playwrightOutputDirectory(context.directory, args)
+  const outputDirectory = playwrightOutputDirectory(args)
   await mkdir(playwrightConfigDirectory, { recursive: true })
-  await mkdir(outputDirectory, { recursive: true })
   await Bun.write(playwrightConfig, JSON.stringify({ browser: { isolated: true } }))
   const environment = playwrightEnvironment()
   environment.PLAYWRIGHT_MCP_OUTPUT_DIR = outputDirectory

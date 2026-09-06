@@ -65,7 +65,7 @@ browser({ session: "admin", args: ["goto", "/settings"] })
 browser({ session: "admin", args: ["close"] })
 ```
 
-The browser runs headlessly by default. Pass `--headed` to `open` to display it. Brandobot uses an isolated Playwright configuration for browser launches and stores generated artifacts under `.brandobot/playwright/<session-hash>/` to avoid sharing them between OpenCode conversations.
+The browser runs headlessly by default. Pass `--headed` to `open` to display it. Brandobot uses an isolated Playwright configuration and temporary per-session internal output for browser launches.
 
 To require approval before browser operations, configure the OpenCode permission by tool name:
 
