@@ -126,5 +126,9 @@ test("plugin adds browser routing guidance", async () => {
 
   expect(output.system.join("\n")).toContain("Use open_url")
   expect(output.system.join("\n")).toContain("--browser=chromium")
-  expect(output.system.join("\n")).toContain("ask where it should be stored")
+  expect(output.system.join("\n")).toContain("MUST call the question tool before any browser command or text response")
+  expect(output.system.join("\n")).toContain('label "artifacts/"')
+  expect(output.system.join("\n")).toContain('label "artifacts/ (Always)"')
+  expect(output.system.join("\n")).toContain("do not ask again")
+  expect(output.system.join("\n")).toContain("Do not ask this question in plain text")
 })
