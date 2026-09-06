@@ -1,4 +1,4 @@
-# brandobot
+# @bwanamaker/brandobot
 
 An [OpenCode](https://opencode.ai) plugin that controls a browser through [Playwright CLI](https://playwright.dev/agent-cli/introduction).
 
@@ -9,7 +9,7 @@ Add the published package to your OpenCode configuration:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["brandobot"]
+  "plugin": ["@bwanamaker/brandobot"]
 }
 ```
 
