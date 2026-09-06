@@ -1,8 +1,17 @@
 {
-  "name": "brandobot",
+  "name": "@bwanamaker/brandobot",
   "version": "0.1.0",
   "description": "An OpenCode plugin that controls browsers through Playwright CLI.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bwanamaker/brandobot.git"
+  },
+  "bugs": "https://github.com/bwanamaker/brandobot/issues",
+  "homepage": "https://github.com/bwanamaker/brandobot#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
