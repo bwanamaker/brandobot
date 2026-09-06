@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { mkdir } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
-import { dirname, join } from "node:path"
+import { dirname, extname, join } from "node:path"
 import { tool, type Plugin, type ToolContext } from "@opencode-ai/plugin"
 
 const require = createRequire(import.meta.url)
@@ -65,7 +65,28 @@ function commandName(args: string[]) {
 function artifactFilename(command: string | undefined, args: string[]) {
   if (command === "video-start") return args[1]
   if (command !== "screenshot") return
-  return args.find((arg) => arg.startsWith("--filename="))?.slice("--filename=".length) ?? args[args.indexOf("--filename") + 1]
+  const filename = args.find((arg) => arg.startsWith("--filename="))
+  if (filename) return filename.slice("--filename=".length)
+  const filenameIndex = args.indexOf("--filename")
+  return filenameIndex === -1 ? undefined : args[filenameIndex + 1]
+}
+
+function timestampedArtifactFilename(filename: string) {
+  if (/-\d{8}-\d{9}(?=\.[^/\\]+$|$)/.test(filename)) return filename
+  const timestamp = new Date().toISOString().replace(/\D/g, "")
+  const extension = extname(filename)
+  return `${filename.slice(0, extension ? -extension.length : undefined)}-${timestamp.slice(0, 8)}-${timestamp.slice(8)}${extension}`
+}
+
+function timestampedArtifactArgs(command: string | undefined, args: string[]) {
+  const filename = artifactFilename(command, args)
+  if (!filename) return args
+  const timestampedFilename = timestampedArtifactFilename(filename)
+  if (command === "video-start") return [args[0], timestampedFilename, ...args.slice(2)]
+  return args.map((arg, index) => {
+    if (arg.startsWith("--filename=")) return `--filename=${timestampedFilename}`
+    return arg === filename && args[index - 1] === "--filename" ? timestampedFilename : arg
+  })
 }
 
 function requiresArtifactDirectory(command: string | undefined, args: string[]) {
@@ -81,16 +102,17 @@ function derivedSessionName(sessionID: string, session?: string) {
 
 export function playwrightArgs(args: string[], sessionID: string, session?: string) {
   const command = commandName(args)
-  requiresArtifactDirectory(command, args)
+  const timestampedArgs = timestampedArtifactArgs(command, args)
+  requiresArtifactDirectory(command, timestampedArgs)
   if (command && restrictedCommands.has(command)) {
     throw new Error(`${command} is not available because it can access other Playwright sessions.`)
   }
-  if (!command || globalCommands.has(command)) return args
+  if (!command || globalCommands.has(command)) return timestampedArgs
   if (session) {
     if (!sessionName.test(session)) throw new Error("Playwright session names may contain only letters, numbers, hyphens, and underscores.")
-    return [`-s=${derivedSessionName(sessionID, session)}`, ...args]
+    return [`-s=${derivedSessionName(sessionID, session)}`, ...timestampedArgs]
   }
-  return [`-s=${derivedSessionName(sessionID)}`, ...args]
+  return [`-s=${derivedSessionName(sessionID)}`, ...timestampedArgs]
 }
 
 async function execute(name: string, command: string[], context: ToolContext, environment = process.env) {
@@ -152,7 +174,7 @@ const browserGuidance = `## Browser routing
 - Use browser for browser testing, navigation, interaction, DOM or accessibility inspection, screenshots, visual checks, storage, tracing, or other automated browser work. Do not attach to an existing browser or use external browser profiles/configuration.
 - For browser, open an absolute URL with --browser=chromium, then call snapshot before using element refs. Take another snapshot after page-changing actions.
 - Use webfetch to read, summarize, or extract content from a URL without browser automation.
-- Before taking a screenshot or recording video, ask where it should be stored unless the user specified a directory. Use "--filename artifacts/name.png" for screenshots or "video-start artifacts/name.webm" for video.
+- Before taking a screenshot or recording video, ask where it should be stored unless the user specified a directory. Use "--filename artifacts/name.png" for screenshots or "video-start artifacts/name.webm" for video; a UTC timestamp is appended automatically.
 - Ask a brief clarification only when a request mixes these intents or is ambiguous. Use browser with --headed only when the user explicitly requests a visible Playwright-controlled browser.`
 
 const Brandobot: Plugin = async () => ({

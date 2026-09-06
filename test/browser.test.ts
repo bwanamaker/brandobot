@@ -63,12 +63,23 @@ test("browser sessions default to the OpenCode conversation", () => {
   expect(() => playwrightArgs(["screenshot", "--filename", "image.png"], "session-id")).toThrow(
     "Ask the user where to store the screenshot",
   )
-  expect(playwrightArgs(["screenshot", "--filename", "artifacts/image.png"], "session-id")[1]).toBe("screenshot")
-  expect(playwrightArgs(["screenshot", "--filename", "artifacts\\image.png"], "session-id")[1]).toBe("screenshot")
+  const screenshot = playwrightArgs(["screenshot", "--filename", "artifacts/image.png"], "session-id")
+  expect(screenshot[1]).toBe("screenshot")
+  expect(screenshot[3]).toMatch(/^artifacts\/image-\d{8}-\d{9}\.png$/)
+  expect(playwrightArgs(["screenshot", "--filename=artifacts/image.png"], "session-id")[2]).toMatch(
+    /^--filename=artifacts\/image-\d{8}-\d{9}\.png$/,
+  )
+  const windowsScreenshot = playwrightArgs(["screenshot", "--filename", "artifacts\\image.png"], "session-id")
+  expect(windowsScreenshot[3]).toMatch(/^artifacts\\image-\d{8}-\d{9}\.png$/)
   expect(() => playwrightArgs(["video-start", "recording.webm"], "session-id")).toThrow(
     "Ask the user where to store the video",
   )
-  expect(playwrightArgs(["video-start", "artifacts/recording.webm"], "session-id")[1]).toBe("video-start")
+  const video = playwrightArgs(["video-start", "artifacts/recording.webm"], "session-id")
+  expect(video[1]).toBe("video-start")
+  expect(video[2]).toMatch(/^artifacts\/recording-\d{8}-\d{9}\.webm$/)
+  expect(playwrightArgs(["video-start", "artifacts/recording-20260905-203834123.webm"], "session-id")[2]).toBe(
+    "artifacts/recording-20260905-203834123.webm",
+  )
 })
 
 test("default browser commands are platform-safe", () => {

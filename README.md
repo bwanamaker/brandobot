@@ -57,6 +57,8 @@ browser({ args: ["screenshot", "--filename", "artifacts/todo.png"] })
 browser({ args: ["close"] })
 ```
 
+Screenshot and video filenames receive a UTC timestamp automatically, such as `artifacts/todo-20260905-203834123.png`, to prevent overwriting prior captures.
+
 Labeled sessions retain their own browser, navigation history, cookies, and storage between tool calls within the current OpenCode conversation:
 
 ```text
