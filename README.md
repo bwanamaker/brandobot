@@ -17,11 +17,11 @@ Add the published package to your OpenCode configuration:
 
 Restart OpenCode after changing its configuration. OpenCode installs the package and its Playwright CLI dependency when it starts.
 
-Playwright CLI requires Node.js 20 or later. Install its managed browsers before the first browser session with `browser({ args: ["install-browser"] })`. On Linux, pass `--with-deps` when system browser dependencies also need installing. The default CLI browser is a system Chrome installation; pass `--browser=chromium` to use Playwright-managed Chromium.
+Playwright CLI requires Node.js 20 or later. It downloads its managed browser on first use. To install it in advance, ask OpenCode to call `browser({ args: ["install-browser"] })`; on Linux, include `--with-deps` when system browser dependencies also need installing. The CLI defaults to a system Chrome installation; pass `--browser=chromium` to use Playwright-managed Chromium.
 
-## URL Routing
+## Choosing Tools
 
-Brandobot gives the agent routing guidance for selecting the appropriate tool:
+Brandobot guides the agent to select the appropriate tool:
 
 | Request | Tool |
 | --- | --- |
@@ -29,15 +29,7 @@ Brandobot gives the agent routing guidance for selecting the appropriate tool:
 | Test, inspect, navigate, interact with, or screenshot a page | `browser` |
 | Read, summarize, or extract content from a URL | OpenCode `webfetch` |
 
-For requests that mix these intents or are unclear, the guidance instructs the agent to ask a short clarifying question.
-
-`open_url` launches the OpenCode host's platform-default browser, not a Playwright browser. When OpenCode runs locally, this is normally the user's default browser:
-
-```text
-open_url({ url: "https://www.brandonwanamaker.com" })
-```
-
-It supports only `http` and `https` URLs and returns an error on unsupported platforms or headless Linux environments.
+Use `open_url` only when explicitly asked to open an `http` or `https` URL in the OpenCode host's default browser. For mixed or unclear requests, Brandobot asks a short clarifying question.
 
 ## Browser Tool
 
@@ -48,10 +40,11 @@ The plugin adds a `browser` tool with these arguments:
 | `args` | Yes | Each token after `playwright-cli`; do not include the executable name. |
 | `session` | No | A labeled browser isolated to the current OpenCode conversation. |
 
-Use the tool in the same order as the CLI. Start with `open --browser=chromium`, call `snapshot` to obtain element refs, use those refs for interactions, and close the session when finished. Browser sessions are isolated automatically for each OpenCode conversation. Set `session` to create a separate labeled browser within that same conversation; labels never share state across conversations. Attaching to an existing browser, persistent profiles, external endpoints, and custom Playwright configuration are not supported.
+Use the tool in the same order as the CLI. Start with `open --browser=chromium`, call `snapshot` when you need element refs, refresh the snapshot after page-changing actions, and close the session when finished. The `type` command writes to the focused field; use snapshot refs for targeted actions such as `click`. Browser sessions are isolated automatically for each OpenCode conversation. Set `session` to create a separate labeled browser within that same conversation; labels never share state across conversations. Attaching to an existing browser, persistent profiles, external endpoints, and custom Playwright configuration are not supported.
 
 ```text
 browser({ args: ["open", "https://demo.playwright.dev/todomvc", "--browser=chromium"] })
+browser({ args: ["snapshot"] })
 browser({ args: ["type", "Buy groceries"] })
 browser({ args: ["press", "Enter"] })
 browser({ args: ["snapshot"] })
@@ -90,7 +83,6 @@ bun install
 bun run typecheck
 bun test
 bun run build
-npm pack --dry-run
 ```
 
 The test runs `playwright-cli --help` through the plugin tool and does not launch or download a browser.
