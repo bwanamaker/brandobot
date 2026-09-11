@@ -2,6 +2,8 @@
 
 An [OpenCode](https://opencode.ai) plugin that controls a browser through [Playwright CLI](https://playwright.dev/agent-cli/introduction).
 
+View the [NPM](https://www.npmjs.com/package/@bwanamaker/brandobot) package.
+
 ## Install
 
 Add the published package to your OpenCode configuration:
