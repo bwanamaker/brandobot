@@ -7,7 +7,8 @@ All notable changes to this project are documented here.
 ### Added
 
 - Added ESLint with TypeScript support.
-- Added linting to GitHub Actions for pushes and pull requests.
+- Added pull-request validation in GitHub Actions for linting, typechecking, tests, and builds.
+- Added tag-based npm staged publishing with Trusted Publishing support.
 - Added a pinned Bun version for reproducible CI installs.
 
 ### Changed
