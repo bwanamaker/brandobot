@@ -28,12 +28,13 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "bun test",
     "prepack": "npm run build"
   },
   "engines": {
-    "node": ">=20"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "keywords": [
     "opencode",
@@ -46,7 +47,11 @@
     "@playwright/cli": "^0.1.18"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "bun-types": "^1.3.9",
-    "typescript": "^5.9.3"
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0"
   }
 }
