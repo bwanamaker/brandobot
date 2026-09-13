@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## [0.2.1] - 2026-09-13
+
+### Fixed
+
+- Corrected the README Node.js version requirement.
+
 ## [0.2.0] - 2026-09-13
 
 ### Added
