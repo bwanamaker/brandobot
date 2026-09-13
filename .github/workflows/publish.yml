@@ -21,6 +21,7 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      - run: npm install --global npm@11.15.0
       - name: Verify tag version
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
-      - run: npm publish --provenance
+      - run: npm stage publish
