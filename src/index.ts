@@ -43,13 +43,7 @@ const cacheRoot =
         ? process.env.XDG_CACHE_HOME
         : join(homedir(), ".cache")
 const brandobotBrowserCache = join(cacheRoot, "brandobot", "playwright")
-type ChromiumInstallation = {
-  controller: AbortController
-  done: boolean
-  promise: Promise<void>
-  waiters: number
-}
-let chromiumInstallation: ChromiumInstallation | undefined
+let chromiumInstall: Promise<void> | undefined
 
 export function defaultBrowserCommand(url: string, platform = process.platform, environment = process.env) {
   const parsed = new URL(url)
@@ -424,64 +418,32 @@ async function installChromium(context: ToolContext) {
 }
 
 function waitForAbort<T>(value: Promise<T>, signal: AbortSignal) {
+  // The pre-check is required: addEventListener never fires on an already-aborted signal.
   if (signal.aborted) return Promise.reject(new Error(cancellationMessage))
-  return new Promise<T>((resolve, reject) => {
-    const abort = () => {
-      signal.removeEventListener("abort", abort)
-      reject(new Error(cancellationMessage))
-    }
-    signal.addEventListener("abort", abort, { once: true })
-    value.then(
-      (result) => {
-        signal.removeEventListener("abort", abort)
-        resolve(result)
-      },
-      (error) => {
-        signal.removeEventListener("abort", abort)
-        reject(error)
-      },
-    )
-  })
+  return Promise.race([
+    value,
+    new Promise<never>((_, reject) =>
+      signal.addEventListener("abort", () => reject(new Error(cancellationMessage)), { once: true }),
+    ),
+  ])
 }
 
 async function ensureChromium(context: ToolContext) {
   if (context.abort.aborted) throw new Error(cancellationMessage)
   if (await chromiumInstalled()) return
-  if (chromiumInstallation?.controller.signal.aborted) {
-    const interruptedInstallation = chromiumInstallation
-    try {
-      await waitForAbort(interruptedInstallation.promise, context.abort)
-    } catch {
-      if (context.abort.aborted) throw new Error(cancellationMessage)
-    }
-    if (chromiumInstallation === interruptedInstallation) chromiumInstallation = undefined
-  }
-  if (!chromiumInstallation) {
-    const controller = new AbortController()
-    const installation: ChromiumInstallation = {
-      controller,
-      done: false,
-      promise: Promise.resolve(),
-      waiters: 0,
-    }
-    const installationContext = { ...context, abort: controller.signal }
-    installation.promise = installChromium(installationContext).finally(() => {
-      installation.done = true
-      if (chromiumInstallation === installation) chromiumInstallation = undefined
-    })
-    chromiumInstallation = installation
-    void installation.promise.catch(() => {})
-  } else {
+  if (chromiumInstall) {
     context.metadata({ title: "Waiting for Brandobot Chromium" })
+  } else {
+    const install = installChromium({ ...context, abort: new AbortController().signal })
+    chromiumInstall = install
+    // ponytail: no abort-on-last-waiter; an orphaned install is bounded by browserInstallTimeout
+    void install
+      .catch(() => {})
+      .then(() => {
+        if (chromiumInstall === install) chromiumInstall = undefined
+      })
   }
-  const installation = chromiumInstallation
-  installation.waiters++
-  try {
-    await waitForAbort(installation.promise, context.abort)
-  } finally {
-    installation.waiters--
-    if (!installation.done && installation.waiters === 0) installation.controller.abort()
-  }
+  await waitForAbort(chromiumInstall, context.abort)
 }
 
 export async function brandobotPlaywrightTestVersion() {
@@ -529,68 +491,53 @@ type ReportSummary = {
   failures: string[]
 }
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined
+type PlaywrightReportSuite = {
+  title?: string
+  specs?: { title?: string; tests?: { results?: { errors?: unknown[] }[] }[] }[]
+  suites?: PlaywrightReportSuite[]
 }
 
-function asArray(value: unknown) {
-  return Array.isArray(value) ? value : []
-}
-
-function asNumber(value: unknown) {
-  return typeof value === "number" ? value : 0
-}
-
-function errorMessage(value: unknown) {
-  if (typeof value === "string") return value
-  const error = asRecord(value)
-  return typeof error?.message === "string" ? error.message : undefined
+type PlaywrightReport = {
+  stats?: { expected?: number; flaky?: number; unexpected?: number; skipped?: number }
+  errors?: unknown[]
+  suites?: PlaywrightReportSuite[]
 }
 
 export function summarizePlaywrightReport(value: unknown): ReportSummary | undefined {
-  const report = asRecord(value)
-  const stats = asRecord(report?.stats)
-  if (!report || !stats) return
+  const report = value as PlaywrightReport | undefined
+  if (!report?.stats) return
 
   const testNames: string[] = []
-  const failures: string[] = asArray(report.errors).flatMap((error) => {
-    const message = errorMessage(error)
-    return message ? [message] : []
+  const failures: string[] = (report.errors ?? []).flatMap((error) => {
+    const message = typeof error === "string" ? error : (error as { message?: unknown })?.message
+    return typeof message === "string" ? [message] : []
   })
   let retries = 0
 
-  const visitSuite = (value: unknown, titles: string[]) => {
-    const suite = asRecord(value)
-    if (!suite) return
-    const title = typeof suite.title === "string" ? suite.title : undefined
-    const nextTitles = title ? [...titles, title] : titles
-    for (const specValue of asArray(suite.specs)) {
-      const spec = asRecord(specValue)
-      if (!spec) continue
-      const specTitle = typeof spec.title === "string" ? spec.title : "Unnamed test"
-      const name = [...nextTitles, specTitle].join(" > ")
+  const visitSuite = (suite: PlaywrightReportSuite, titles: string[]) => {
+    const nextTitles = suite.title ? [...titles, suite.title] : titles
+    for (const spec of suite.specs ?? []) {
+      const name = [...nextTitles, spec.title ?? "Unnamed test"].join(" > ")
       testNames.push(name)
-      for (const testValue of asArray(spec.tests)) {
-        const test = asRecord(testValue)
-        const results = asArray(test?.results)
+      for (const test of spec.tests ?? []) {
+        const results = test.results ?? []
         retries += Math.max(0, results.length - 1)
-        for (const resultValue of results) {
-          const result = asRecord(resultValue)
-          for (const error of asArray(result?.errors)) {
-            const message = errorMessage(error)
-            if (message) failures.push(`${name}: ${message}`)
+        for (const result of results) {
+          for (const error of result.errors ?? []) {
+            const message = typeof error === "string" ? error : (error as { message?: unknown })?.message
+            if (typeof message === "string") failures.push(`${name}: ${message}`)
           }
         }
       }
     }
-    for (const child of asArray(suite.suites)) visitSuite(child, nextTitles)
+    for (const child of suite.suites ?? []) visitSuite(child, nextTitles)
   }
 
-  for (const suite of asArray(report.suites)) visitSuite(suite, [])
+  for (const suite of report.suites ?? []) visitSuite(suite, [])
   return {
-    passed: asNumber(stats.expected) + asNumber(stats.flaky),
-    failed: asNumber(stats.unexpected),
-    skipped: asNumber(stats.skipped),
+    passed: (report.stats.expected ?? 0) + (report.stats.flaky ?? 0),
+    failed: report.stats.unexpected ?? 0,
+    skipped: report.stats.skipped ?? 0,
     retries,
     testNames,
     failures: [...new Set(failures)],
@@ -684,12 +631,24 @@ async function executeEphemeralTest(source: string, context: ToolContext) {
   try {
     await ensureChromium(context)
   } catch (error) {
-    if (error instanceof Error && error.message === cancellationMessage) return cancelledTestResult()
-    throw error
+    if (!(error instanceof Error && error.message === cancellationMessage)) throw error
+    const version = await brandobotPlaywrightTestVersion()
+    return {
+      title: "UI test cancelled",
+      output: `CANCELLED - Brandobot ephemeral validation\nRunner: Brandobot @playwright/test ${version}\nThe operation was cancelled.`,
+      metadata: {
+        status: "cancelled",
+        runner: "brandobot",
+        playwrightVersion: version,
+      },
+    }
   }
   context.metadata({ title: "Running Brandobot UI test" })
   const workspace = await createEphemeralTest(source)
-  const heartbeat = setInterval(() => void writeFile(join(workspace.directory, ephemeralWorkspaceActiveFile), ""), ephemeralWorkspaceHeartbeat)
+  const heartbeat = setInterval(
+    () => void writeFile(join(workspace.directory, ephemeralWorkspaceActiveFile), "").catch(() => {}),
+    ephemeralWorkspaceHeartbeat,
+  )
   try {
     return await executeEphemeralTestWorkspace(workspace, context)
   } finally {
@@ -748,19 +707,6 @@ async function executeEphemeralTestWorkspace(
       ...summary,
       artifacts: artifacts.paths,
       artifactsTruncated: artifacts.truncated,
-    },
-  }
-}
-
-async function cancelledTestResult() {
-  const version = await brandobotPlaywrightTestVersion()
-  return {
-    title: "UI test cancelled",
-    output: `CANCELLED - Brandobot ephemeral validation\nRunner: Brandobot @playwright/test ${version}\nThe operation was cancelled.`,
-    metadata: {
-      status: "cancelled",
-      runner: "brandobot",
-      playwrightVersion: version,
     },
   }
 }
