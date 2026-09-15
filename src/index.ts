@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto"
-import { access, chmod, mkdir, mkdtemp, opendir, readFile, stat, symlink, writeFile } from "node:fs/promises"
+import { createHash, randomUUID } from "node:crypto"
+import { access, chmod, mkdir, mkdtemp, opendir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { homedir, tmpdir } from "node:os"
 import { dirname, extname, isAbsolute, join } from "node:path"
@@ -7,7 +7,8 @@ import { tool, type Plugin, type ToolContext } from "@opencode-ai/plugin"
 
 const require = createRequire(import.meta.url)
 // Resolve our direct dependency so no globally installed CLI is required.
-const playwrightCli = join(dirname(require.resolve("@playwright/cli/package.json")), "playwright-cli.js")
+const playwrightCliPackage = require.resolve("@playwright/cli/package.json")
+const playwrightCli = join(dirname(playwrightCliPackage), "playwright-cli.js")
 const playwrightTestPackage = require.resolve("@playwright/test/package.json")
 const playwrightTestDirectory = dirname(playwrightTestPackage)
 const playwrightTestCli = join(playwrightTestDirectory, "cli.js")
@@ -18,9 +19,16 @@ const browserInstallTimeout = 10 * 60_000
 const outputLimit = 1_000_000
 const artifactLimit = 100
 const artifactEntryLimit = 200
+const processTerminationGrace = 5_000
+const ephemeralWorkspacePrefix = "brandobot-ui-test-"
+const ephemeralWorkspaceActiveFile = ".brandobot-active"
+const ephemeralWorkspaceHeartbeat = 60_000
+const ephemeralWorkspaceLimit = 20
+const ephemeralWorkspaceRetention = 24 * 60 * 60_000
 const cancellationMessage = "Brandobot operation cancelled."
 const globalCommands = new Set(["install", "install-browser"])
 const restrictedCommands = new Set(["attach", "close-all", "kill-all", "list", "show"])
+const openFlags = new Set(["browser", "device", "headed", "mobile", "persistent", "profile"])
 const sessionName = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
 const playwrightConfigDirectory = join(tmpdir(), `brandobot-playwright-${process.pid}`)
 const playwrightConfig = join(playwrightConfigDirectory, "cli.config.json")
@@ -174,25 +182,94 @@ async function readOutput(stream: ReadableStream<Uint8Array> | null) {
   return `${output}${truncated ? "\n[output truncated]" : ""}`
 }
 
-async function executeProcess(
+function processDescendants(pid: number) {
+  try {
+    const output = new TextDecoder().decode(Bun.spawnSync({ cmd: ["ps", "-eo", "pid=,ppid="], stdout: "pipe", stderr: "ignore" }).stdout)
+    const children = new Map<number, number[]>()
+    for (const line of output.split("\n")) {
+      const [child, parent] = line.trim().split(/\s+/).map(Number)
+      if (!Number.isInteger(child) || !Number.isInteger(parent)) continue
+      children.set(parent, [...(children.get(parent) ?? []), child])
+    }
+    const descendants: number[] = []
+    const parents = [pid]
+    while (parents.length) {
+      for (const child of children.get(parents.pop()!) ?? []) {
+        descendants.push(child)
+        parents.push(child)
+      }
+    }
+    return descendants
+  } catch {
+    // Process groups still handle descendants when the platform cannot list processes.
+    return []
+  }
+}
+
+function processesWithToken(token: string) {
+  try {
+    const output = new TextDecoder().decode(Bun.spawnSync({ cmd: ["ps", "eww", "-eo", "pid=,command="], stdout: "pipe", stderr: "ignore" }).stdout)
+    return output
+      .split("\n")
+      .filter((line) => line.includes(`BRANDOBOT_PROCESS_TOKEN=${token}`))
+      .map((line) => Number(line.trim().split(/\s+/, 1)[0]))
+      .filter(Number.isInteger)
+  } catch {
+    // Process groups still handle descendants when the platform cannot inspect environments.
+    return []
+  }
+}
+
+function terminateProcessTree(pid: number, descendants: number[], signal: NodeJS.Signals) {
+  try {
+    if (process.platform === "win32") {
+      Bun.spawnSync({ cmd: ["taskkill", "/pid", `${pid}`, "/t", "/f"], stdout: "ignore", stderr: "ignore" })
+    } else {
+      for (const descendant of [...descendants].reverse()) {
+        try {
+          process.kill(descendant, signal)
+        } catch {
+          // The process may have exited before its parent was signalled.
+        }
+      }
+      process.kill(-pid, signal)
+    }
+  } catch {
+    // The process may have exited between the cancellation check and the signal.
+  }
+}
+
+export async function executeProcess(
   command: string[],
   context: ToolContext,
   environment = process.env,
   timeout?: number,
 ): Promise<ProcessResult> {
-  const controller = new AbortController()
-  let cancelled = context.abort.aborted
+  if (context.abort.aborted) return { exitCode: 1, output: "", timedOut: false, cancelled: true }
+
+  let cancelled = false
+  let child: ReturnType<typeof Bun.spawn> | undefined
+  let descendants: number[] = []
+  const processToken = randomUUID()
+  let forceKill: ReturnType<typeof setTimeout> | undefined
+  const terminate = () => {
+    if (!child) return
+    descendants = process.platform === "win32" ? [] : [...new Set([...processDescendants(child.pid), ...processesWithToken(processToken)])]
+    terminateProcessTree(child.pid, descendants, "SIGTERM")
+    if (process.platform !== "win32") {
+      forceKill ??= setTimeout(() => terminateProcessTree(child!.pid, descendants, "SIGKILL"), processTerminationGrace)
+    }
+  }
   const abort = () => {
     cancelled = true
-    controller.abort()
+    terminate()
   }
-  if (context.abort.aborted) controller.abort()
-  else context.abort.addEventListener("abort", abort, { once: true })
+  context.abort.addEventListener("abort", abort, { once: true })
   let timedOut = false
   const timer = timeout
     ? setTimeout(() => {
         timedOut = true
-        controller.abort()
+        terminate()
       }, timeout)
     : undefined
 
@@ -201,12 +278,13 @@ async function executeProcess(
     const process = Bun.spawn({
       cmd: command,
       cwd: context.directory,
-      env: environment,
-      signal: controller.signal,
+      detached: true,
+      env: { ...environment, BRANDOBOT_PROCESS_TOKEN: processToken },
       stderr: "pipe",
       stdin: "ignore",
       stdout: "pipe",
     })
+    child = process
     const [stdout, stderr, exitCode] = await Promise.all([
       readOutput(process.stdout),
       readOutput(process.stderr),
@@ -220,6 +298,10 @@ async function executeProcess(
     throw error
   } finally {
     if (timer) clearTimeout(timer)
+    if (forceKill) {
+      clearTimeout(forceKill)
+      if (child) terminateProcessTree(child.pid, descendants, "SIGKILL")
+    }
     context.abort.removeEventListener("abort", abort)
   }
 }
@@ -235,8 +317,22 @@ async function execute(name: string, command: string[], context: ToolContext, en
   return result.output
 }
 
+function isPlaywrightEnvironment(key: string) {
+  const name = key.toLowerCase()
+  return (
+    name === "pwdebug" ||
+    name === "npm_config_pwdebug" ||
+    name === "npm_package_config_pwdebug" ||
+    name.startsWith("playwright_") ||
+    name.startsWith("pwtest_") ||
+    name.startsWith("pw_test_")
+  )
+}
+
 export function playwrightEnvironment(source = process.env) {
-  const environment = Object.fromEntries(Object.entries(source).filter(([key]) => !key.startsWith("PLAYWRIGHT_MCP_")))
+  const environment = Object.fromEntries(
+    Object.entries(source).filter(([key]) => !isPlaywrightEnvironment(key)),
+  )
   environment.PLAYWRIGHT_MCP_CONFIG = playwrightConfig
   environment.PLAYWRIGHT_MCP_ISOLATED = "true"
   environment.PLAYWRIGHT_BROWSERS_PATH = brandobotBrowserCache
@@ -265,22 +361,44 @@ async function executePlaywright(args: string[], context: ToolContext) {
 }
 
 export function chromiumRequested(args: string[]) {
+  const optionEnd = args.indexOf("--")
+  const options = args.slice(1, optionEnd === -1 ? undefined : optionEnd)
   return (
     args[0] === "open" &&
-    (args.includes("--browser=chromium") || args.some((arg, index) => arg === "--browser" && args[index + 1] === "chromium"))
+    !options.includes("--help") &&
+    !options.includes("-h") &&
+    !options.includes("--version") &&
+    !options.includes("-v") &&
+    (options.includes("--browser=chromium") || options.some((arg, index) => arg === "--browser" && options[index + 1] === "chromium"))
   )
+}
+
+function validatePlaywrightFlags(args: string[]) {
+  if (args[0] !== "open") return
+  for (const arg of args.slice(1)) {
+    if (arg === "--") break
+    if (!arg.startsWith("-") || arg === "-") continue
+    const flag = arg.slice(arg.startsWith("--") ? 2 : 1).split("=")[0].replace(/^no-/, "")
+    if (["h", "help", "json", "raw", "v", "version"].includes(flag) || openFlags.has(flag)) continue
+    throw new Error(`${arg.split("=")[0]} is not a supported Playwright CLI option.`)
+  }
 }
 
 async function chromiumInstalled() {
   await mkdir(brandobotBrowserCache, { recursive: true, mode: 0o700 })
   if (process.platform !== "win32") await chmod(brandobotBrowserCache, 0o700)
-  const inheritedBrowserCache = process.env.PLAYWRIGHT_BROWSERS_PATH
-  process.env.PLAYWRIGHT_BROWSERS_PATH = brandobotBrowserCache
-  const playwright = require("@playwright/test") as { chromium: { executablePath(): string } }
-  const executablePath = playwright.chromium.executablePath()
-  if (inheritedBrowserCache === undefined) delete process.env.PLAYWRIGHT_BROWSERS_PATH
-  else process.env.PLAYWRIGHT_BROWSERS_PATH = inheritedBrowserCache
   try {
+    const result = Bun.spawnSync({
+      cmd: [process.execPath, "-e", "console.log(require(process.env.BRANDOBOT_PLAYWRIGHT_TEST).chromium.executablePath())"],
+      env: {
+        ...process.env,
+        BRANDOBOT_PLAYWRIGHT_TEST: playwrightTestDirectory,
+        PLAYWRIGHT_BROWSERS_PATH: brandobotBrowserCache,
+      },
+      stderr: "ignore",
+      stdout: "pipe",
+    })
+    const executablePath = new TextDecoder().decode(result.stdout).trim()
     await access(executablePath)
     return true
   } catch {
@@ -394,7 +512,7 @@ export default defineConfig({
 export function playwrightTestEnvironment(source = process.env, reportFile?: string) {
   const environment = Object.fromEntries(
     Object.entries(source).filter(([key]) => {
-      return !key.startsWith("PLAYWRIGHT_") && !key.startsWith("PWTEST_") && !key.startsWith("PW_TEST_")
+      return !isPlaywrightEnvironment(key)
     }),
   )
   environment.PLAYWRIGHT_BROWSERS_PATH = brandobotBrowserCache
@@ -479,6 +597,13 @@ export function summarizePlaywrightReport(value: unknown): ReportSummary | undef
   }
 }
 
+export function playwrightTestStatus(result: ProcessResult, summary: ReportSummary | undefined) {
+  if (result.cancelled) return "cancelled"
+  if (result.timedOut) return "timed out"
+  if (result.exitCode !== 0) return "failed"
+  return !summary || summary.passed > 0 ? "passed" : "skipped"
+}
+
 async function artifactPaths(directory: string) {
   try {
     const paths: string[] = []
@@ -509,20 +634,50 @@ async function readPlaywrightReport(reportFile: string) {
   }
 }
 
+export async function cleanupEphemeralWorkspaces(root = tmpdir()) {
+  try {
+    const workspaces = await Promise.all(
+      (await readdir(root, { withFileTypes: true }))
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith(ephemeralWorkspacePrefix))
+        .map(async (entry) => {
+          const path = join(root, entry.name)
+          const active = await stat(join(path, ephemeralWorkspaceActiveFile))
+            .then(({ mtimeMs }) => Date.now() - mtimeMs < testProcessTimeout + processTerminationGrace + ephemeralWorkspaceHeartbeat)
+            .catch(() => false)
+          return { path, mtimeMs: (await stat(path)).mtimeMs, active }
+        }),
+    )
+    const now = Date.now()
+    const removals = workspaces
+      .sort((first, second) => second.mtimeMs - first.mtimeMs)
+      .filter(({ active, mtimeMs }, index) => !active && (index >= ephemeralWorkspaceLimit || now - mtimeMs > ephemeralWorkspaceRetention))
+    await Promise.all(removals.map(({ path }) => rm(path, { recursive: true, force: true })))
+  } catch {
+    // Cleanup is best effort; failed workspaces are retried by a later run.
+  }
+}
+
 async function createEphemeralTest(source: string) {
-  const directory = await mkdtemp(join(tmpdir(), "brandobot-ui-test-"))
+  await cleanupEphemeralWorkspaces()
+  const directory = await mkdtemp(join(tmpdir(), ephemeralWorkspacePrefix))
   const packageDirectory = join(directory, "node_modules", "@playwright")
-  await mkdir(packageDirectory, { recursive: true })
-  await symlink(playwrightTestDirectory, join(packageDirectory, "test"), process.platform === "win32" ? "junction" : "dir")
-  const testFile = join(directory, "brandobot.spec.ts")
-  const outputDirectory = join(directory, "artifacts")
-  const reportFile = join(directory, "report.json")
-  const configFile = join(directory, "playwright.config.ts")
-  await Promise.all([
-    writeFile(testFile, source),
-    writeFile(configFile, ephemeralTestConfig(outputDirectory)),
-  ])
-  return { directory, testFile, outputDirectory, configFile, reportFile }
+  try {
+    await writeFile(join(directory, ephemeralWorkspaceActiveFile), "")
+    await mkdir(packageDirectory, { recursive: true })
+    await symlink(playwrightTestDirectory, join(packageDirectory, "test"), process.platform === "win32" ? "junction" : "dir")
+    const testFile = join(directory, "brandobot.spec.ts")
+    const outputDirectory = join(directory, "artifacts")
+    const reportFile = join(directory, "report.json")
+    const configFile = join(directory, "playwright.config.ts")
+    await Promise.all([
+      writeFile(testFile, source),
+      writeFile(configFile, ephemeralTestConfig(outputDirectory)),
+    ])
+    return { directory, testFile, outputDirectory, configFile, reportFile }
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true })
+    throw error
+  }
 }
 
 async function executeEphemeralTest(source: string, context: ToolContext) {
@@ -534,6 +689,19 @@ async function executeEphemeralTest(source: string, context: ToolContext) {
   }
   context.metadata({ title: "Running Brandobot UI test" })
   const workspace = await createEphemeralTest(source)
+  const heartbeat = setInterval(() => void writeFile(join(workspace.directory, ephemeralWorkspaceActiveFile), ""), ephemeralWorkspaceHeartbeat)
+  try {
+    return await executeEphemeralTestWorkspace(workspace, context)
+  } finally {
+    clearInterval(heartbeat)
+    await rm(join(workspace.directory, ephemeralWorkspaceActiveFile), { force: true }).catch(() => undefined)
+  }
+}
+
+async function executeEphemeralTestWorkspace(
+  workspace: Awaited<ReturnType<typeof createEphemeralTest>>,
+  context: ToolContext,
+) {
   const startedAt = Date.now()
   const result = await executeProcess(
     [playwrightTestCli, "test", "--config", workspace.configFile, workspace.testFile, "--reporter=json"],
@@ -546,23 +714,13 @@ async function executeEphemeralTest(source: string, context: ToolContext) {
   const reportError = "error" in report && typeof report.error === "string" ? report.error : undefined
   const artifacts = await artifactPaths(workspace.outputDirectory)
   const version = await brandobotPlaywrightTestVersion()
-  const status = result.cancelled
-    ? "cancelled"
-    : result.timedOut
-      ? "timed out"
-      : result.exitCode !== 0
-        ? "failed"
-        : !summary
-          ? "inconclusive"
-          : summary.passed === 0
-            ? "skipped"
-            : "passed"
+  const status = playwrightTestStatus(result, summary)
   const passed = status === "passed"
   const counts = summary
     ? `${summary.passed} passed, ${summary.failed} failed, ${summary.skipped} skipped, ${summary.retries} retries`
     : "Test result details were unavailable."
   const lines = [
-    `${passed ? "PASS" : status === "skipped" ? "SKIPPED" : status === "cancelled" ? "CANCELLED" : status === "inconclusive" ? "INCONCLUSIVE" : "FAIL"} - Brandobot ephemeral validation`,
+    `${passed ? "PASS" : status === "skipped" ? "SKIPPED" : status === "cancelled" ? "CANCELLED" : "FAIL"} - Brandobot ephemeral validation`,
     `Runner: Brandobot @playwright/test ${version}`,
     `Result: ${counts}`,
     `Duration: ${Date.now() - startedAt}ms`,
@@ -572,7 +730,7 @@ async function executeEphemeralTest(source: string, context: ToolContext) {
   if (summary?.failures.length) lines.push(`Failures:\n${summary.failures.slice(0, 5).map((failure) => `- ${failure}`).join("\n")}`)
   if (status === "cancelled") lines.push("The operation was cancelled.")
   if (status === "timed out") lines.push(`The test process exceeded its ${testProcessTimeout}ms limit.`)
-  if (status === "inconclusive") lines.push(reportError ?? "The JSON report did not contain test results.")
+  if (!summary && reportError) lines.push(reportError)
   if (!summary && result.output) lines.push(`Diagnostics:\n${result.output}`)
   if (artifacts.paths.length) lines.push(`Artifacts:\n${artifacts.paths.map((artifact) => `- ${artifact}`).join("\n")}`)
   if (artifacts.truncated) lines.push(`Artifact list truncated after ${artifactLimit} files or ${artifactEntryLimit} entries.`)
@@ -656,8 +814,9 @@ const Brandobot: Plugin = async () => ({
       },
       async execute(input, context) {
         // Playwright CLI namespaces browser state by an optional named session.
-        if (chromiumRequested(input.args)) await ensureChromium(context)
         const args = playwrightArgs(input.args, context.sessionID, input.session)
+        validatePlaywrightFlags(input.args)
+        if (chromiumRequested(input.args)) await ensureChromium(context)
         return executePlaywright(args, context)
       },
     }),
