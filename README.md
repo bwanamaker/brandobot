@@ -17,7 +17,7 @@ Add the published package to your OpenCode configuration:
 
 Restart OpenCode after changing its configuration. OpenCode installs the package and its Playwright CLI dependency when it starts.
 
-Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` is required. It downloads its managed browser on first use. To install it in advance, ask OpenCode to call `browser({ args: ["install-browser"] })`; on Linux, include `--with-deps` when system browser dependencies also need installing. The CLI defaults to a system Chrome installation; pass `--browser=chromium` to use Playwright-managed Chromium.
+Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` is required. Brandobot downloads managed Chromium before a Chromium browser operation or temporary UI test needs it. On Linux, install missing system browser dependencies separately; Brandobot does not run privileged dependency installation. The browser CLI defaults to a system Chrome installation, so pass `--browser=chromium` to use managed Chromium.
 
 ## Choosing Tools
 
@@ -27,6 +27,7 @@ Brandobot guides the agent to select the appropriate tool:
 | --- | --- |
 | Open a URL in the OpenCode host's browser | `open_url` |
 | Test, inspect, navigate, interact with, or screenshot a page | `browser` |
+| Run a temporary Playwright Test check | `run_ui_test` |
 | Read, summarize, or extract content from a URL | OpenCode `webfetch` |
 
 Use `open_url` only when explicitly asked to open an `http` or `https` URL in the OpenCode host's default browser. For mixed or unclear requests, Brandobot asks a short clarifying question.
@@ -63,6 +64,27 @@ browser({ session: "admin", args: ["close"] })
 ```
 
 The browser runs headlessly by default. Pass `--headed` to `open` to display it. Brandobot uses an isolated Playwright configuration and temporary per-session internal output for browser launches.
+
+## Temporary UI Tests
+
+`run_ui_test` runs a complete TypeScript Playwright Test spec with Brandobot's bundled `@playwright/test`. Brandobot writes its spec, runner configuration, and evidence only to an OS temporary directory; no project files, dependencies, or CI configuration are changed by the plugin.
+
+```text
+run_ui_test({ source: 'import { expect, test } from "@playwright/test"; test("home page", async ({ page }) => { await page.goto("https://example.com"); await expect(page).toHaveTitle(/Example Domain/); });' })
+```
+
+The result includes test counts, diagnostics, and temporary trace, screenshot, or video paths. It is Brandobot-only evidence. To save a regression test, ask the agent to write it using the target project's own test conventions and runner.
+
+The supplied source is local code execution. It can access the same machine resources available to the OpenCode process, so require approval for the tool when that boundary matters:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "run_ui_test": "ask"
+  }
+}
+```
 
 To require approval before browser operations, configure the OpenCode permission by tool name:
 

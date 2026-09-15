@@ -2,11 +2,16 @@ import { expect, test } from "bun:test"
 import { tmpdir } from "node:os"
 import { tool, type ToolContext } from "@opencode-ai/plugin"
 import Brandobot, {
+  brandobotPlaywrightTestVersion,
+  chromiumRequested,
   defaultBrowserCommand,
+  ephemeralTestConfig,
   playwrightArgs,
   playwrightCommand,
   playwrightEnvironment,
   playwrightOutputDirectory,
+  playwrightTestEnvironment,
+  summarizePlaywrightReport,
 } from "../src/index.ts"
 
 test("browser validates argv and runs Playwright CLI", async () => {
@@ -99,6 +104,7 @@ test("Playwright environment suppresses inherited connection configuration", () 
   expect(environment.PATH).toBe("/bin")
   expect(environment.PLAYWRIGHT_MCP_CDP_ENDPOINT).toBeUndefined()
   expect(environment.PLAYWRIGHT_MCP_ISOLATED).toBe("true")
+  expect(environment.PLAYWRIGHT_BROWSERS_PATH).toContain("brandobot")
   expect(environment.PWTEST_CLI_GLOBAL_CONFIG).toContain("brandobot-playwright-")
 })
 
@@ -118,6 +124,89 @@ test("Playwright open and artifacts use isolated configuration", () => {
   expect(firstOutput).not.toBe(secondOutput)
 })
 
+test("ephemeral UI tests use bundled Chromium and summarize results", async () => {
+  const hooks = await Brandobot({} as never)
+  const runner = hooks.tool?.run_ui_test
+
+  expect(runner).toBeDefined()
+  expect(tool.schema.object(runner!.args).safeParse({ source: "" }).success).toBe(false)
+  expect(chromiumRequested(["open", "https://example.com", "--browser=chromium"])).toBe(true)
+  expect(chromiumRequested(["open", "https://example.com", "--browser", "chromium"])).toBe(true)
+  expect(chromiumRequested(["open", "https://example.com"])).toBe(false)
+  expect(ephemeralTestConfig("/tmp/artifacts")).toContain('outputDir: "/tmp/artifacts"')
+  expect(ephemeralTestConfig("/tmp/artifacts")).toContain('trace: "retain-on-failure"')
+  expect(
+    playwrightTestEnvironment({
+      PATH: "/bin",
+      PLAYWRIGHT_JSON_OUTPUT_FILE: "/project/report.json",
+      PW_TEST_REPORTER: "dot",
+      PWTEST_CACHE_DIR: "/project/cache",
+      PLAYWRIGHT_BROWSERS_PATH: "/browser-cache",
+    }, "/tmp/report.json"),
+  ).toEqual({
+    PATH: "/bin",
+    PLAYWRIGHT_BROWSERS_PATH: expect.stringContaining("brandobot"),
+    PLAYWRIGHT_JSON_OUTPUT_FILE: "/tmp/report.json",
+  })
+  expect(await brandobotPlaywrightTestVersion()).toMatch(/^\d+\./)
+  expect(
+    summarizePlaywrightReport({
+      stats: { expected: 1, flaky: 1, unexpected: 1, skipped: 1 },
+      suites: [
+        {
+          title: "checkout.spec.ts",
+          specs: [
+            {
+              title: "guest checkout",
+              tests: [
+                {
+                  results: [
+                    { errors: [{ message: "first failure" }] },
+                    { errors: [{ message: "second failure" }] },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  ).toEqual({
+    passed: 2,
+    failed: 1,
+    skipped: 1,
+    retries: 1,
+    testNames: ["checkout.spec.ts > guest checkout"],
+    failures: [
+      "checkout.spec.ts > guest checkout: first failure",
+      "checkout.spec.ts > guest checkout: second failure",
+    ],
+  })
+})
+
+test("ephemeral UI tests report an already-cancelled request", async () => {
+  const hooks = await Brandobot({} as never)
+  const runner = hooks.tool?.run_ui_test
+  const controller = new AbortController()
+  controller.abort()
+
+  const result = await runner!.execute(
+    { source: 'import { test } from "@playwright/test"; test("never runs", () => {})' },
+    {
+      abort: controller.signal,
+      agent: "build",
+      directory: process.cwd(),
+      messageID: "cancelled",
+      metadata() {},
+      sessionID: "session",
+      worktree: process.cwd(),
+      async ask() {},
+    } satisfies ToolContext,
+  )
+
+  expect(result).toMatchObject({ metadata: { status: "cancelled", runner: "brandobot" } })
+})
+
 test("plugin adds browser routing guidance", async () => {
   const hooks = await Brandobot({} as never)
   const output = { system: [] as string[] }
@@ -131,4 +220,6 @@ test("plugin adds browser routing guidance", async () => {
   expect(output.system.join("\n")).toContain('label "artifacts/ (Always)"')
   expect(output.system.join("\n")).toContain("do not ask again")
   expect(output.system.join("\n")).toContain("Do not ask this question in plain text")
+  expect(output.system.join("\n")).toContain("Use run_ui_test")
+  expect(output.system.join("\n")).toContain("not CI validation")
 })
