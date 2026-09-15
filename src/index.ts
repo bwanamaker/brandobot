@@ -417,15 +417,24 @@ async function installChromium(context: ToolContext) {
   }
 }
 
-function waitForAbort<T>(value: Promise<T>, signal: AbortSignal) {
+export function waitForAbort<T>(value: Promise<T>, signal: AbortSignal) {
   // The pre-check is required: addEventListener never fires on an already-aborted signal.
   if (signal.aborted) return Promise.reject(new Error(cancellationMessage))
-  return Promise.race([
-    value,
-    new Promise<never>((_, reject) =>
-      signal.addEventListener("abort", () => reject(new Error(cancellationMessage)), { once: true }),
-    ),
-  ])
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new Error(cancellationMessage))
+    signal.addEventListener("abort", onAbort, { once: true })
+    const detach = () => signal.removeEventListener("abort", onAbort)
+    value.then(
+      (result) => {
+        detach()
+        resolve(result)
+      },
+      (error) => {
+        detach()
+        reject(error)
+      },
+    )
+  })
 }
 
 async function ensureChromium(context: ToolContext) {
@@ -503,14 +512,27 @@ type PlaywrightReport = {
   suites?: PlaywrightReportSuite[]
 }
 
+// Playwright colorizes error messages even in its JSON report.
+// eslint-disable-next-line no-control-regex -- matching ANSI escapes requires the ESC control character
+const ansiPattern = /\x1B\[[0-9;]*[A-Za-z]/g
+
+export function stripAnsi(text: string) {
+  return text.replace(ansiPattern, "")
+}
+
+function reportErrorMessage(error: unknown) {
+  const message = typeof error === "string" ? error : (error as { message?: unknown })?.message
+  return typeof message === "string" ? stripAnsi(message) : undefined
+}
+
 export function summarizePlaywrightReport(value: unknown): ReportSummary | undefined {
   const report = value as PlaywrightReport | undefined
   if (!report?.stats) return
 
   const testNames: string[] = []
   const failures: string[] = (report.errors ?? []).flatMap((error) => {
-    const message = typeof error === "string" ? error : (error as { message?: unknown })?.message
-    return typeof message === "string" ? [message] : []
+    const message = reportErrorMessage(error)
+    return message !== undefined ? [message] : []
   })
   let retries = 0
 
@@ -524,8 +546,8 @@ export function summarizePlaywrightReport(value: unknown): ReportSummary | undef
         retries += Math.max(0, results.length - 1)
         for (const result of results) {
           for (const error of result.errors ?? []) {
-            const message = typeof error === "string" ? error : (error as { message?: unknown })?.message
-            if (typeof message === "string") failures.push(`${name}: ${message}`)
+            const message = reportErrorMessage(error)
+            if (message !== undefined) failures.push(`${name}: ${message}`)
           }
         }
       }
@@ -690,7 +712,7 @@ async function executeEphemeralTestWorkspace(
   if (status === "cancelled") lines.push("The operation was cancelled.")
   if (status === "timed out") lines.push(`The test process exceeded its ${testProcessTimeout}ms limit.`)
   if (!summary && reportError) lines.push(reportError)
-  if (!summary && result.output) lines.push(`Diagnostics:\n${result.output}`)
+  if (!summary && result.output) lines.push(`Diagnostics:\n${stripAnsi(result.output)}`)
   if (artifacts.paths.length) lines.push(`Artifacts:\n${artifacts.paths.map((artifact) => `- ${artifact}`).join("\n")}`)
   if (artifacts.truncated) lines.push(`Artifact list truncated after ${artifactLimit} files or ${artifactEntryLimit} entries.`)
 

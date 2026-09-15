@@ -17,6 +17,7 @@ import Brandobot, {
   playwrightTestEnvironment,
   playwrightTestStatus,
   summarizePlaywrightReport,
+  waitForAbort,
 } from "../src/index.ts"
 
 test("browser validates argv and runs Playwright CLI", async () => {
@@ -297,7 +298,7 @@ test("ephemeral UI tests use bundled Chromium and summarize results", async () =
                 {
                   results: [
                     { errors: [{ message: "first failure" }] },
-                    { errors: [{ message: "second failure" }] },
+                    { errors: [{ message: "second \x1B[31mfailure\x1B[39m" }] },
                   ],
                 },
               ],
@@ -317,6 +318,23 @@ test("ephemeral UI tests use bundled Chromium and summarize results", async () =
       "checkout.spec.ts > guest checkout: second failure",
     ],
   })
+})
+
+test("waitForAbort detaches its listener when the value settles", async () => {
+  const detached: string[] = []
+  const trackDetach = (signal: AbortSignal) => {
+    const remove = signal.removeEventListener.bind(signal)
+    signal.removeEventListener = (type, listener, options) => {
+      detached.push(type)
+      return remove(type, listener, options)
+    }
+    return signal
+  }
+
+  await expect(waitForAbort(Promise.resolve("installed"), trackDetach(new AbortController().signal))).resolves.toBe("installed")
+  await expect(waitForAbort(Promise.reject(new Error("failed")), trackDetach(new AbortController().signal))).rejects.toThrow("failed")
+  expect(detached).toEqual(["abort", "abort"])
+  await expect(waitForAbort(Promise.resolve("late"), AbortSignal.abort())).rejects.toThrow("cancelled")
 })
 
 test("ephemeral UI tests report an already-cancelled request", async () => {
