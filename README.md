@@ -65,7 +65,7 @@ browser({ session: "admin", args: ["close"] })
 
 The browser runs headlessly by default. Pass `--headed` to `open` to display it. Brandobot uses an isolated Playwright configuration and temporary per-session internal output for browser launches.
 
-## Temporary UI Tests
+## Ephemeral UI Tests
 
 `run_ui_test` runs a complete TypeScript Playwright Test spec with Brandobot's bundled `@playwright/test`. Brandobot writes its spec, runner configuration, and evidence only to an OS temporary directory; no project files, dependencies, or CI configuration are changed by the plugin.
 
