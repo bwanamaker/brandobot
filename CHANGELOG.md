@@ -17,7 +17,12 @@ All notable changes to this project are documented here.
 - Pinned Playwright dependencies so the CLI and test runner share one browser cache.
 - Expanded Playwright environment sanitization to inherited debug configuration.
 - Stripped ANSI escape codes from test results and diagnostics.
+
+### Fixed
+
 - Fixed an abort-listener leak when waiting for Chromium installation.
+- Fixed plugin startup by preventing helper exports from being treated as legacy plugins.
+- Guarded Chromium detection against malformed non-array arguments.
 
 ## [0.2.1] - 2026-09-13
 

@@ -3,7 +3,9 @@ import { mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:f
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { tool, type ToolContext } from "@opencode-ai/plugin"
-import Brandobot, {
+import Brandobot from "../src/index.ts"
+
+const {
   brandobotPlaywrightTestVersion,
   cleanupEphemeralWorkspaces,
   chromiumRequested,
@@ -18,7 +20,7 @@ import Brandobot, {
   playwrightTestStatus,
   summarizePlaywrightReport,
   waitForAbort,
-} from "../src/index.ts"
+} = Brandobot
 
 test("browser validates argv and runs Playwright CLI", async () => {
   const hooks = await Brandobot({} as never)
@@ -261,6 +263,7 @@ test("ephemeral UI tests use bundled Chromium and summarize results", async () =
   expect(tool.schema.object(runner!.args).safeParse({ source: "" }).success).toBe(false)
   expect(chromiumRequested(["open", "https://example.com", "--browser=chromium"])).toBe(true)
   expect(chromiumRequested(["open", "https://example.com", "--browser", "chromium"])).toBe(true)
+  expect(chromiumRequested(null as never)).toBe(false)
   expect(chromiumRequested(["open", "--help", "--browser=chromium"])).toBe(false)
   expect(chromiumRequested(["open", "--", "--browser=chromium"])).toBe(false)
   expect(chromiumRequested(["open", "https://example.com"])).toBe(false)

@@ -45,7 +45,7 @@ const cacheRoot =
 const brandobotBrowserCache = join(cacheRoot, "brandobot", "playwright")
 let chromiumInstall: Promise<void> | undefined
 
-export function defaultBrowserCommand(url: string, platform = process.platform, environment = process.env) {
+function defaultBrowserCommand(url: string, platform = process.platform, environment = process.env) {
   const parsed = new URL(url)
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("Only http: and https: URLs can be opened in the default browser.")
@@ -131,7 +131,7 @@ function derivedSessionName(sessionID: string, session?: string) {
   return `brandobot-${createHash("sha256").update(`${sessionID}:${session ?? ""}`).digest("hex").slice(0, 54)}`
 }
 
-export function playwrightArgs(args: string[], sessionID: string, session?: string) {
+function playwrightArgs(args: string[], sessionID: string, session?: string) {
   const command = commandName(args)
   const timestampedArgs = timestampedArtifactArgs(command, args)
   requiresArtifactDirectory(command, timestampedArgs)
@@ -233,7 +233,7 @@ function terminateProcessTree(pid: number, descendants: number[], signal: NodeJS
   }
 }
 
-export async function executeProcess(
+async function executeProcess(
   command: string[],
   context: ToolContext,
   environment = process.env,
@@ -323,7 +323,7 @@ function isPlaywrightEnvironment(key: string) {
   )
 }
 
-export function playwrightEnvironment(source = process.env) {
+function playwrightEnvironment(source = process.env) {
   const environment = Object.fromEntries(
     Object.entries(source).filter(([key]) => !isPlaywrightEnvironment(key)),
   )
@@ -334,12 +334,12 @@ export function playwrightEnvironment(source = process.env) {
   return environment
 }
 
-export function playwrightCommand(args: string[]) {
+function playwrightCommand(args: string[]) {
   const command = args[0]?.startsWith("-s=") ? args[1] : args[0]
   return command === "open" ? [playwrightCli, "--config", playwrightConfig, ...args] : [playwrightCli, ...args]
 }
 
-export function playwrightOutputDirectory(args: string[]) {
+function playwrightOutputDirectory(args: string[]) {
   const session = args.find((arg) => arg.startsWith("-s="))?.slice(3) ?? "global"
   return join(playwrightConfigDirectory, "artifacts", session)
 }
@@ -354,7 +354,8 @@ async function executePlaywright(args: string[], context: ToolContext) {
   return execute("playwright-cli", playwrightCommand(args), context, environment)
 }
 
-export function chromiumRequested(args: string[]) {
+function chromiumRequested(args: string[]) {
+  if (!Array.isArray(args)) return false
   const optionEnd = args.indexOf("--")
   const options = args.slice(1, optionEnd === -1 ? undefined : optionEnd)
   return (
@@ -417,7 +418,7 @@ async function installChromium(context: ToolContext) {
   }
 }
 
-export function waitForAbort<T>(value: Promise<T>, signal: AbortSignal) {
+function waitForAbort<T>(value: Promise<T>, signal: AbortSignal) {
   // The pre-check is required: addEventListener never fires on an already-aborted signal.
   if (signal.aborted) return Promise.reject(new Error(cancellationMessage))
   return new Promise<T>((resolve, reject) => {
@@ -455,13 +456,13 @@ async function ensureChromium(context: ToolContext) {
   await waitForAbort(chromiumInstall, context.abort)
 }
 
-export async function brandobotPlaywrightTestVersion() {
+async function brandobotPlaywrightTestVersion() {
   const metadata = JSON.parse(await readFile(playwrightTestPackage, "utf8")) as { version?: unknown }
   if (typeof metadata.version !== "string") throw new Error("Could not read Brandobot's @playwright/test version.")
   return metadata.version
 }
 
-export function ephemeralTestConfig(outputDirectory: string) {
+function ephemeralTestConfig(outputDirectory: string) {
   return `import { defineConfig } from "@playwright/test"
 
 export default defineConfig({
@@ -480,7 +481,7 @@ export default defineConfig({
 `
 }
 
-export function playwrightTestEnvironment(source = process.env, reportFile?: string) {
+function playwrightTestEnvironment(source = process.env, reportFile?: string) {
   const environment = Object.fromEntries(
     Object.entries(source).filter(([key]) => {
       return !isPlaywrightEnvironment(key)
@@ -516,7 +517,7 @@ type PlaywrightReport = {
 // eslint-disable-next-line no-control-regex -- matching ANSI escapes requires the ESC control character
 const ansiPattern = /\x1B\[[0-9;]*[A-Za-z]/g
 
-export function stripAnsi(text: string) {
+function stripAnsi(text: string) {
   return text.replace(ansiPattern, "")
 }
 
@@ -525,7 +526,7 @@ function reportErrorMessage(error: unknown) {
   return typeof message === "string" ? stripAnsi(message) : undefined
 }
 
-export function summarizePlaywrightReport(value: unknown): ReportSummary | undefined {
+function summarizePlaywrightReport(value: unknown): ReportSummary | undefined {
   const report = value as PlaywrightReport | undefined
   if (!report?.stats) return
 
@@ -566,7 +567,7 @@ export function summarizePlaywrightReport(value: unknown): ReportSummary | undef
   }
 }
 
-export function playwrightTestStatus(result: ProcessResult, summary: ReportSummary | undefined) {
+function playwrightTestStatus(result: ProcessResult, summary: ReportSummary | undefined) {
   if (result.cancelled) return "cancelled"
   if (result.timedOut) return "timed out"
   if (result.exitCode !== 0) return "failed"
@@ -603,7 +604,7 @@ async function readPlaywrightReport(reportFile: string) {
   }
 }
 
-export async function cleanupEphemeralWorkspaces(root = tmpdir()) {
+async function cleanupEphemeralWorkspaces(root = tmpdir()) {
   try {
     const workspaces = await Promise.all(
       (await readdir(root, { withFileTypes: true }))
@@ -805,4 +806,19 @@ const Brandobot: Plugin = async () => ({
   },
 })
 
-export default Brandobot
+export default Object.assign(Brandobot, {
+  brandobotPlaywrightTestVersion,
+  cleanupEphemeralWorkspaces,
+  chromiumRequested,
+  defaultBrowserCommand,
+  ephemeralTestConfig,
+  executeProcess,
+  playwrightArgs,
+  playwrightCommand,
+  playwrightEnvironment,
+  playwrightOutputDirectory,
+  playwrightTestEnvironment,
+  playwrightTestStatus,
+  summarizePlaywrightReport,
+  waitForAbort,
+})
