@@ -9,8 +9,8 @@ All notable changes to this project are documented here.
 - Added the `run_ui_test` tool for running temporary TypeScript Playwright Test specs with a bundled `@playwright/test` runner.
 - Added managed Chromium downloads shared by the `browser` and `run_ui_test` tools.
 - Added bounded structured test results with temporary trace, screenshot, and video evidence.
-- Added process cancellation that terminates timed-out or cancelled child process trees.
-- Added documentation for code-execution permissions and project-owned saved tests.
+- Added bounded runner timeouts and best-effort cancellation cleanup.
+- Added documentation for code-execution permissions and temporary-test limitations.
 
 ### Changed
 
@@ -27,6 +27,8 @@ All notable changes to this project are documented here.
 - Kept ephemeral-workspace cleanup inside Brandobot's private temporary directory.
 - Marked runs without a usable Playwright JSON report as unverified instead of passing.
 - Validated Playwright's Chromium installation completion marker before reuse.
+- Restricted browser CLI commands that can install dependencies, import or export browser state, or execute local code.
+- Excluded generated OpenCode plugin output from linting.
 
 ## [0.2.1] - 2026-09-13
 
