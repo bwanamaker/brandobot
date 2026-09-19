@@ -223,6 +223,60 @@ test("process cancellation terminates child processes", async () => {
   }
 })
 
+test("process timeout terminates child processes", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "brandobot-timeout-"))
+  const marker = join(directory, "child.pid")
+  let childPID: number | undefined
+  const grandchild = "process.on('SIGTERM', () => {}); setInterval(() => {}, 60000)"
+  const child = `import { writeFileSync } from "node:fs"; const child = Bun.spawn([process.execPath, "-e", ${JSON.stringify(grandchild)}], { detached: true, stdout: "ignore", stderr: "ignore" }); writeFileSync(process.env.BRANDOBOT_MARKER, String(child.pid))`
+  const script = `Bun.spawn([process.execPath, "-e", ${JSON.stringify(child)}], { detached: true, stdout: "ignore", stderr: "ignore" }); setInterval(() => {}, 60000)`
+
+  try {
+    const result = await executeProcess(
+      [process.execPath, "-e", script],
+      {
+        abort: new AbortController().signal,
+        agent: "build",
+        directory,
+        messageID: "message",
+        metadata() {},
+        sessionID: "session",
+        worktree: directory,
+        async ask() {},
+      } satisfies ToolContext,
+      { ...process.env, BRANDOBOT_MARKER: marker },
+      500,
+    )
+    expect(result).toMatchObject({ timedOut: true, cancelled: false })
+    for (let attempt = 0; attempt < 50 && !childPID; attempt++) {
+      try {
+        childPID = Number(await readFile(marker, "utf8"))
+      } catch {
+        await Bun.sleep(20)
+      }
+    }
+    expect(childPID).toBeDefined()
+    for (let attempt = 0; attempt < 50; attempt++) {
+      try {
+        process.kill(childPID!, 0)
+      } catch {
+        break
+      }
+      await Bun.sleep(20)
+    }
+    expect(() => process.kill(childPID!, 0)).toThrow()
+  } finally {
+    if (childPID) {
+      try {
+        process.kill(childPID, "SIGKILL")
+      } catch {
+        // The assertion above already confirmed the child exited.
+      }
+    }
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 test("ephemeral workspace cleanup retains recent workspaces", async () => {
   const root = await mkdtemp(join(tmpdir(), "brandobot-cleanup-"))
   const now = Date.now()
@@ -305,6 +359,12 @@ test("ephemeral UI tests use bundled Chromium and summarize results", async () =
     PLAYWRIGHT_JSON_OUTPUT_FILE: "/tmp/report.json",
   })
   expect(playwrightTestStatus({ exitCode: 0, output: "", timedOut: false, cancelled: false }, undefined)).toBe("unverified")
+  expect(
+    playwrightTestStatus(
+      { exitCode: 0, output: "", timedOut: false, cancelled: false },
+      { passed: 1, failed: 1, skipped: 0, retries: 0, testNames: [], failures: [] },
+    ),
+  ).toBe("failed")
   expect(await brandobotPlaywrightTestVersion()).toMatch(/^\d+\./)
   expect(
     summarizePlaywrightReport({

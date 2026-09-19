@@ -585,7 +585,9 @@ function playwrightTestStatus(result: ProcessResult, summary: ReportSummary | un
   if (result.cancelled) return "cancelled"
   if (result.timedOut) return "timed out"
   if (result.exitCode !== 0) return "failed"
-  return !summary ? "unverified" : summary.passed > 0 ? "passed" : "skipped"
+  if (!summary) return "unverified"
+  if (summary.failed > 0) return "failed"
+  return summary.passed > 0 ? "passed" : "skipped"
 }
 
 async function artifactPaths(directory: string) {
