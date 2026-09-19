@@ -27,7 +27,7 @@ const ephemeralWorkspaceHeartbeat = 60_000
 const ephemeralWorkspaceLimit = 20
 const ephemeralWorkspaceRetention = 24 * 60 * 60_000
 const cancellationMessage = "Brandobot operation cancelled."
-const restrictedCommands = new Set(["attach", "close-all", "install", "install-browser", "kill-all", "list", "show", "state-load", "state-save"])
+const restrictedCommands = new Set(["attach", "close-all", "install", "install-browser", "kill-all", "list", "run-code", "show", "state-load", "state-save"])
 const openFlags = new Set(["browser", "device", "headed", "mobile", "persistent", "profile"])
 const sessionName = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
 const playwrightConfigDirectory = join(tmpdir(), `brandobot-playwright-${process.pid}`)
@@ -142,6 +142,9 @@ export function playwrightArgs(args: string[], sessionID: string, session?: stri
     if (command === "state-load" || command === "state-save") {
       throw new Error(`${command} is not available because it can access external browser state.`)
     }
+    if (command === "run-code") {
+      throw new Error(`${command} is not available because it can execute local code.`)
+    }
     throw new Error(`${command} is not available because it can access other Playwright sessions.`)
   }
   if (!command) return timestampedArgs
@@ -220,6 +223,11 @@ function processesWithToken(token: string) {
   }
 }
 
+function processTerminationTargets(pid: number, token: string) {
+  if (process.platform === "win32") return []
+  return [...new Set([...processDescendants(pid), ...processesWithToken(token)])]
+}
+
 function terminateProcessTree(pid: number, descendants: number[], signal: NodeJS.Signals) {
   try {
     if (process.platform === "win32") {
@@ -254,10 +262,13 @@ async function executeProcess(
   let forceKill: ReturnType<typeof setTimeout> | undefined
   const terminate = () => {
     if (!child) return
-    descendants = process.platform === "win32" ? [] : [...new Set([...processDescendants(child.pid), ...processesWithToken(processToken)])]
+    descendants = processTerminationTargets(child.pid, processToken)
     terminateProcessTree(child.pid, descendants, "SIGTERM")
     if (process.platform !== "win32") {
-      forceKill ??= setTimeout(() => terminateProcessTree(child!.pid, descendants, "SIGKILL"), processTerminationGrace)
+      forceKill ??= setTimeout(() => {
+        descendants = processTerminationTargets(child!.pid, processToken)
+        terminateProcessTree(child!.pid, descendants, "SIGKILL")
+      }, processTerminationGrace)
     }
   }
   const abort = () => {
@@ -300,7 +311,10 @@ async function executeProcess(
     if (timer) clearTimeout(timer)
     if (forceKill) {
       clearTimeout(forceKill)
-      if (child) terminateProcessTree(child.pid, descendants, "SIGKILL")
+      if (child) {
+        descendants = processTerminationTargets(child.pid, processToken)
+        terminateProcessTree(child.pid, descendants, "SIGKILL")
+      }
     }
     context.abort.removeEventListener("abort", abort)
   }

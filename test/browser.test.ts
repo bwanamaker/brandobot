@@ -83,6 +83,7 @@ test("browser sessions default to the OpenCode conversation", () => {
   expect(() => playwrightArgs(["install", "--skills", "agents", "--global"], "session-id")).toThrow("not available")
   expect(() => playwrightArgs(["state-load", ".auth/session.json"], "session-id")).toThrow("external browser state")
   expect(() => playwrightArgs(["state-save", "artifacts/session.json"], "session-id")).toThrow("external browser state")
+  expect(() => playwrightArgs(["run-code", "async (page) => page.title()"], "session-id")).toThrow("local code")
   expect(playwrightArgs(["config-print"], "session-id")[1]).toBe("config-print")
   expect(playwrightArgs(["open", "https://example.com"], "session/../id")[0]).not.toBe(
     playwrightArgs(["open", "https://example.com"], "session?../id")[0],
@@ -264,6 +265,63 @@ test("process timeout terminates child processes", async () => {
     for (let attempt = 0; attempt < 50; attempt++) {
       try {
         process.kill(childPID!, 0)
+      } catch {
+        break
+      }
+      await Bun.sleep(20)
+    }
+    expect(() => process.kill(childPID!, 0)).toThrow()
+  } finally {
+    if (childPID) {
+      try {
+        process.kill(childPID, "SIGKILL")
+      } catch {
+        // The assertion above already confirmed the child exited.
+      }
+    }
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test("process cleanup terminates children spawned during cancellation", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "brandobot-late-child-"))
+  const marker = join(directory, "child.pid")
+  const ready = join(directory, "ready")
+  const controller = new AbortController()
+  let childPID: number | undefined
+  const child = "setInterval(() => {}, 60000)"
+  const script = `import { writeFileSync } from "node:fs"; process.on("SIGTERM", () => { const child = Bun.spawn([process.execPath, "-e", ${JSON.stringify(child)}], { detached: true, stdout: "ignore", stderr: "ignore" }); writeFileSync(process.env.BRANDOBOT_MARKER, String(child.pid)); process.exit(0) }); writeFileSync(process.env.BRANDOBOT_READY, ""); setInterval(() => {}, 60000)`
+
+  try {
+    const execution = executeProcess(
+      [process.execPath, "-e", script],
+      {
+        abort: controller.signal,
+        agent: "build",
+        directory,
+        messageID: "message",
+        metadata() {},
+        sessionID: "session",
+        worktree: directory,
+        async ask() {},
+      } satisfies ToolContext,
+      { ...process.env, BRANDOBOT_MARKER: marker, BRANDOBOT_READY: ready },
+    )
+    for (let attempt = 0; attempt < 50; attempt++) {
+      try {
+        await readFile(ready)
+        break
+      } catch {
+        await Bun.sleep(20)
+      }
+    }
+    await expect(readFile(ready)).resolves.toBeDefined()
+    controller.abort()
+    expect(await execution).toMatchObject({ cancelled: true })
+    childPID = Number(await readFile(marker, "utf8"))
+    for (let attempt = 0; attempt < 50; attempt++) {
+      try {
+        process.kill(childPID, 0)
       } catch {
         break
       }
