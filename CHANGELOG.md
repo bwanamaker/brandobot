@@ -18,6 +18,10 @@ All notable changes to this project are documented here.
 - Expanded Playwright environment sanitization to inherited debug configuration.
 - Stripped ANSI escape codes from test results and diagnostics.
 
+### Fixed
+
+- Fixed plugin initialization when OpenCode treats Brandobot's helper exports as legacy plugins.
+
 ## [0.2.1] - 2026-09-13
 
 ### Fixed
