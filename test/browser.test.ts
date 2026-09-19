@@ -81,6 +81,8 @@ test("browser sessions default to the OpenCode conversation", () => {
   expect(labeledSession.slice(1)).toEqual(["open", "https://example.com"])
   expect(() => playwrightArgs(["install-browser"], "session-id")).toThrow("not available")
   expect(() => playwrightArgs(["install", "--skills", "agents", "--global"], "session-id")).toThrow("not available")
+  expect(() => playwrightArgs(["state-load", ".auth/session.json"], "session-id")).toThrow("external browser state")
+  expect(() => playwrightArgs(["state-save", "artifacts/session.json"], "session-id")).toThrow("external browser state")
   expect(playwrightArgs(["config-print"], "session-id")[1]).toBe("config-print")
   expect(playwrightArgs(["open", "https://example.com"], "session/../id")[0]).not.toBe(
     playwrightArgs(["open", "https://example.com"], "session?../id")[0],

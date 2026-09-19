@@ -27,7 +27,7 @@ const ephemeralWorkspaceHeartbeat = 60_000
 const ephemeralWorkspaceLimit = 20
 const ephemeralWorkspaceRetention = 24 * 60 * 60_000
 const cancellationMessage = "Brandobot operation cancelled."
-const restrictedCommands = new Set(["attach", "close-all", "install", "install-browser", "kill-all", "list", "show"])
+const restrictedCommands = new Set(["attach", "close-all", "install", "install-browser", "kill-all", "list", "show", "state-load", "state-save"])
 const openFlags = new Set(["browser", "device", "headed", "mobile", "persistent", "profile"])
 const sessionName = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
 const playwrightConfigDirectory = join(tmpdir(), `brandobot-playwright-${process.pid}`)
@@ -138,6 +138,9 @@ export function playwrightArgs(args: string[], sessionID: string, session?: stri
   if (command && restrictedCommands.has(command)) {
     if (command === "install" || command === "install-browser") {
       throw new Error(`${command} is not available because Brandobot manages browser installation.`)
+    }
+    if (command === "state-load" || command === "state-save") {
+      throw new Error(`${command} is not available because it can access external browser state.`)
     }
     throw new Error(`${command} is not available because it can access other Playwright sessions.`)
   }
