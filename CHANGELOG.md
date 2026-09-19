@@ -18,18 +18,6 @@ All notable changes to this project are documented here.
 - Expanded Playwright environment sanitization to inherited debug configuration.
 - Stripped ANSI escape codes from test results and diagnostics.
 
-### Fixed
-
-- Fixed an abort-listener leak when waiting for Chromium installation.
-- Fixed plugin startup by preventing helper exports from being treated as legacy plugins.
-- Restored previously published named helper exports through OpenCode's plugin-module API.
-- Guarded Chromium detection against malformed non-array arguments.
-- Kept ephemeral-workspace cleanup inside Brandobot's private temporary directory.
-- Marked runs without a usable Playwright JSON report as unverified instead of passing.
-- Validated Playwright's Chromium installation completion marker before reuse.
-- Restricted browser CLI commands that can install dependencies, import or export browser state, or execute local code.
-- Excluded generated OpenCode plugin output from linting.
-
 ## [0.2.1] - 2026-09-13
 
 ### Fixed
