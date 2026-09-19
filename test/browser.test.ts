@@ -3,19 +3,21 @@ import { mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:f
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { tool, type ToolContext } from "@opencode-ai/plugin"
-import Brandobot from "../src/index.ts"
-
-const {
-  brandobotPlaywrightTestVersion,
-  cleanupEphemeralWorkspaces,
-  chromiumRequested,
+import Brandobot, {
   defaultBrowserCommand,
-  ephemeralTestConfig,
-  executeProcess,
   playwrightArgs,
   playwrightCommand,
   playwrightEnvironment,
   playwrightOutputDirectory,
+} from "../src/index.ts"
+
+const {
+  brandobotPlaywrightTestVersion,
+  cleanupEphemeralWorkspaces,
+  chromiumInstallationComplete,
+  chromiumRequested,
+  ephemeralTestConfig,
+  executeProcess,
   playwrightTestEnvironment,
   playwrightTestStatus,
   summarizePlaywrightReport,
@@ -23,7 +25,7 @@ const {
 } = Brandobot
 
 test("browser validates argv and runs Playwright CLI", async () => {
-  const hooks = await Brandobot({} as never)
+  const hooks = await Brandobot.server({} as never)
   const browser = hooks.tool?.browser
 
   expect(browser).toBeDefined()
@@ -47,7 +49,7 @@ test("browser validates argv and runs Playwright CLI", async () => {
 })
 
 test("browser validates before installing Chromium", async () => {
-  const hooks = await Brandobot({} as never)
+  const hooks = await Brandobot.server({} as never)
   const browser = hooks.tool?.browser
 
   await expect(
@@ -228,15 +230,15 @@ test("ephemeral workspace cleanup retains recent workspaces", async () => {
   try {
     await Promise.all(
       Array.from({ length: 21 }, async (_, index) => {
-        const directory = join(root, `brandobot-ui-test-${index}`)
+        const directory = join(root, `run-${index}`)
         await mkdir(directory)
         await utimes(directory, now / 1_000 - index, now / 1_000 - index)
       }),
     )
-    const expired = join(root, "brandobot-ui-test-expired")
+    const expired = join(root, "run-expired")
     await mkdir(expired)
     await utimes(expired, now / 1_000 - 2 * 24 * 60 * 60, now / 1_000 - 2 * 24 * 60 * 60)
-    const active = join(root, "brandobot-ui-test-active")
+    const active = join(root, "run-active")
     await mkdir(active)
     await writeFile(join(active, ".brandobot-active"), "")
     await utimes(active, now / 1_000 - 2 * 24 * 60 * 60, now / 1_000 - 2 * 24 * 60 * 60)
@@ -245,18 +247,34 @@ test("ephemeral workspace cleanup retains recent workspaces", async () => {
     await cleanupEphemeralWorkspaces(root)
 
     const entries = await readdir(root)
-    expect(entries).toContain("brandobot-ui-test-0")
-    expect(entries).not.toContain("brandobot-ui-test-20")
-    expect(entries).not.toContain("brandobot-ui-test-expired")
-    expect(entries).toContain("brandobot-ui-test-active")
+    expect(entries).toContain("run-0")
+    expect(entries).not.toContain("run-20")
+    expect(entries).not.toContain("run-expired")
+    expect(entries).toContain("run-active")
     expect(entries).toContain("unrelated")
   } finally {
     await rm(root, { recursive: true, force: true })
   }
 })
 
+test("Chromium installation requires Playwright's completion marker", async () => {
+  const cache = await mkdtemp(join(tmpdir(), "brandobot-chromium-"))
+  const browserDirectory = join(cache, "chromium-1")
+  const executable = join(browserDirectory, "chrome")
+
+  try {
+    await mkdir(browserDirectory)
+    await writeFile(executable, "")
+    expect(await chromiumInstallationComplete(executable, cache)).toBe(false)
+    await writeFile(join(browserDirectory, "INSTALLATION_COMPLETE"), "")
+    expect(await chromiumInstallationComplete(executable, cache)).toBe(true)
+  } finally {
+    await rm(cache, { recursive: true, force: true })
+  }
+})
+
 test("ephemeral UI tests use bundled Chromium and summarize results", async () => {
-  const hooks = await Brandobot({} as never)
+  const hooks = await Brandobot.server({} as never)
   const runner = hooks.tool?.run_ui_test
 
   expect(runner).toBeDefined()
@@ -286,7 +304,7 @@ test("ephemeral UI tests use bundled Chromium and summarize results", async () =
     PLAYWRIGHT_BROWSERS_PATH: expect.stringContaining("brandobot"),
     PLAYWRIGHT_JSON_OUTPUT_FILE: "/tmp/report.json",
   })
-  expect(playwrightTestStatus({ exitCode: 0, output: "", timedOut: false, cancelled: false }, undefined)).toBe("passed")
+  expect(playwrightTestStatus({ exitCode: 0, output: "", timedOut: false, cancelled: false }, undefined)).toBe("unverified")
   expect(await brandobotPlaywrightTestVersion()).toMatch(/^\d+\./)
   expect(
     summarizePlaywrightReport({
@@ -341,7 +359,7 @@ test("waitForAbort detaches its listener when the value settles", async () => {
 })
 
 test("ephemeral UI tests report an already-cancelled request", async () => {
-  const hooks = await Brandobot({} as never)
+  const hooks = await Brandobot.server({} as never)
   const runner = hooks.tool?.run_ui_test
   const controller = new AbortController()
   controller.abort()
@@ -364,7 +382,7 @@ test("ephemeral UI tests report an already-cancelled request", async () => {
 })
 
 test("plugin adds browser routing guidance", async () => {
-  const hooks = await Brandobot({} as never)
+  const hooks = await Brandobot.server({} as never)
   const output = { system: [] as string[] }
 
   await hooks["experimental.chat.system.transform"]!({} as never, output)

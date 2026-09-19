@@ -17,7 +17,7 @@ Add the published package to your OpenCode configuration:
 
 Restart OpenCode after changing its configuration. OpenCode installs the package and its Playwright CLI dependency when it starts.
 
-Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` is required. Brandobot downloads managed Chromium before a Chromium browser operation or temporary UI test needs it. On Linux, install missing system browser dependencies separately; Brandobot does not run privileged dependency installation. The browser CLI defaults to a system Chrome installation, so pass `--browser=chromium` to use managed Chromium.
+Node.js `^22.22.2 || ^24.15.0 || >=26.0.0` is required. Brandobot downloads managed Chromium before a Chromium browser operation or temporary UI test needs it. Chromium installation is shared across requests, so cancelling one request does not cancel an already-started download. On Linux, install missing system browser dependencies separately; Brandobot does not run privileged dependency installation. The browser CLI defaults to a system Chrome installation, so pass `--browser=chromium` to use managed Chromium.
 
 ## Choosing Tools
 

@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto"
 import { access, chmod, mkdir, mkdtemp, opendir, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { homedir, tmpdir } from "node:os"
-import { dirname, extname, isAbsolute, join } from "node:path"
-import { tool, type Plugin, type ToolContext } from "@opencode-ai/plugin"
+import { dirname, extname, isAbsolute, join, relative } from "node:path"
+import { tool, type Plugin, type PluginModule, type ToolContext } from "@opencode-ai/plugin"
 
 const require = createRequire(import.meta.url)
 // Resolve our direct dependency so no globally installed CLI is required.
@@ -20,7 +20,8 @@ const outputLimit = 1_000_000
 const artifactLimit = 100
 const artifactEntryLimit = 200
 const processTerminationGrace = 5_000
-const ephemeralWorkspacePrefix = "brandobot-ui-test-"
+const ephemeralWorkspaceDirectory = join(tmpdir(), "brandobot-ui-tests")
+const ephemeralWorkspacePrefix = "run-"
 const ephemeralWorkspaceActiveFile = ".brandobot-active"
 const ephemeralWorkspaceHeartbeat = 60_000
 const ephemeralWorkspaceLimit = 20
@@ -45,7 +46,7 @@ const cacheRoot =
 const brandobotBrowserCache = join(cacheRoot, "brandobot", "playwright")
 let chromiumInstall: Promise<void> | undefined
 
-function defaultBrowserCommand(url: string, platform = process.platform, environment = process.env) {
+export function defaultBrowserCommand(url: string, platform = process.platform, environment = process.env) {
   const parsed = new URL(url)
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("Only http: and https: URLs can be opened in the default browser.")
@@ -131,7 +132,7 @@ function derivedSessionName(sessionID: string, session?: string) {
   return `brandobot-${createHash("sha256").update(`${sessionID}:${session ?? ""}`).digest("hex").slice(0, 54)}`
 }
 
-function playwrightArgs(args: string[], sessionID: string, session?: string) {
+export function playwrightArgs(args: string[], sessionID: string, session?: string) {
   const command = commandName(args)
   const timestampedArgs = timestampedArtifactArgs(command, args)
   requiresArtifactDirectory(command, timestampedArgs)
@@ -323,7 +324,7 @@ function isPlaywrightEnvironment(key: string) {
   )
 }
 
-function playwrightEnvironment(source = process.env) {
+export function playwrightEnvironment(source = process.env) {
   const environment = Object.fromEntries(
     Object.entries(source).filter(([key]) => !isPlaywrightEnvironment(key)),
   )
@@ -334,12 +335,12 @@ function playwrightEnvironment(source = process.env) {
   return environment
 }
 
-function playwrightCommand(args: string[]) {
+export function playwrightCommand(args: string[]) {
   const command = args[0]?.startsWith("-s=") ? args[1] : args[0]
   return command === "open" ? [playwrightCli, "--config", playwrightConfig, ...args] : [playwrightCli, ...args]
 }
 
-function playwrightOutputDirectory(args: string[]) {
+export function playwrightOutputDirectory(args: string[]) {
   const session = args.find((arg) => arg.startsWith("-s="))?.slice(3) ?? "global"
   return join(playwrightConfigDirectory, "artifacts", session)
 }
@@ -394,7 +395,20 @@ async function chromiumInstalled() {
       stdout: "pipe",
     })
     const executablePath = new TextDecoder().decode(result.stdout).trim()
-    await access(executablePath)
+    return chromiumInstallationComplete(executablePath)
+  } catch {
+    return false
+  }
+}
+
+async function chromiumInstallationComplete(executablePath: string, cacheDirectory = brandobotBrowserCache) {
+  const browserDirectory = relative(cacheDirectory, executablePath).split(/[\\/]/)[0]
+  if (!browserDirectory || browserDirectory === "..") return false
+  try {
+    await Promise.all([
+      access(executablePath),
+      access(join(cacheDirectory, browserDirectory, "INSTALLATION_COMPLETE")),
+    ])
     return true
   } catch {
     return false
@@ -571,7 +585,7 @@ function playwrightTestStatus(result: ProcessResult, summary: ReportSummary | un
   if (result.cancelled) return "cancelled"
   if (result.timedOut) return "timed out"
   if (result.exitCode !== 0) return "failed"
-  return !summary || summary.passed > 0 ? "passed" : "skipped"
+  return !summary ? "unverified" : summary.passed > 0 ? "passed" : "skipped"
 }
 
 async function artifactPaths(directory: string) {
@@ -604,7 +618,7 @@ async function readPlaywrightReport(reportFile: string) {
   }
 }
 
-async function cleanupEphemeralWorkspaces(root = tmpdir()) {
+async function cleanupEphemeralWorkspaces(root = ephemeralWorkspaceDirectory) {
   try {
     const workspaces = await Promise.all(
       (await readdir(root, { withFileTypes: true }))
@@ -628,8 +642,10 @@ async function cleanupEphemeralWorkspaces(root = tmpdir()) {
 }
 
 async function createEphemeralTest(source: string) {
+  await mkdir(ephemeralWorkspaceDirectory, { recursive: true, mode: 0o700 })
+  if (process.platform !== "win32") await chmod(ephemeralWorkspaceDirectory, 0o700)
   await cleanupEphemeralWorkspaces()
-  const directory = await mkdtemp(join(tmpdir(), ephemeralWorkspacePrefix))
+  const directory = await mkdtemp(join(ephemeralWorkspaceDirectory, ephemeralWorkspacePrefix))
   const packageDirectory = join(directory, "node_modules", "@playwright")
   try {
     await writeFile(join(directory, ephemeralWorkspaceActiveFile), "")
@@ -702,7 +718,7 @@ async function executeEphemeralTestWorkspace(
     ? `${summary.passed} passed, ${summary.failed} failed, ${summary.skipped} skipped, ${summary.retries} retries`
     : "Test result details were unavailable."
   const lines = [
-    `${passed ? "PASS" : status === "skipped" ? "SKIPPED" : status === "cancelled" ? "CANCELLED" : "FAIL"} - Brandobot ephemeral validation`,
+    `${passed ? "PASS" : status === "skipped" ? "SKIPPED" : status === "unverified" ? "UNVERIFIED" : status === "cancelled" ? "CANCELLED" : "FAIL"} - Brandobot ephemeral validation`,
     `Runner: Brandobot @playwright/test ${version}`,
     `Result: ${counts}`,
     `Duration: ${Date.now() - startedAt}ms`,
@@ -712,6 +728,7 @@ async function executeEphemeralTestWorkspace(
   if (summary?.failures.length) lines.push(`Failures:\n${summary.failures.slice(0, 5).map((failure) => `- ${failure}`).join("\n")}`)
   if (status === "cancelled") lines.push("The operation was cancelled.")
   if (status === "timed out") lines.push(`The test process exceeded its ${testProcessTimeout}ms limit.`)
+  if (status === "unverified") lines.push("The runner exited without a usable JSON report.")
   if (!summary && reportError) lines.push(reportError)
   if (!summary && result.output) lines.push(`Diagnostics:\n${stripAnsi(result.output)}`)
   if (artifacts.paths.length) lines.push(`Artifacts:\n${artifacts.paths.map((artifact) => `- ${artifact}`).join("\n")}`)
@@ -806,9 +823,10 @@ const Brandobot: Plugin = async () => ({
   },
 })
 
-export default Object.assign(Brandobot, {
+export default Object.assign({ id: "@bwanamaker/brandobot", server: Brandobot } satisfies PluginModule, {
   brandobotPlaywrightTestVersion,
   cleanupEphemeralWorkspaces,
+  chromiumInstallationComplete,
   chromiumRequested,
   defaultBrowserCommand,
   ephemeralTestConfig,
