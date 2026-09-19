@@ -26,6 +26,54 @@ const {
   waitForAbort,
 } = Brandobot
 
+function testContext(overrides: Partial<ToolContext> = {}) {
+  return {
+    abort: new AbortController().signal,
+    agent: "build",
+    directory: process.cwd(),
+    messageID: "message",
+    metadata() {},
+    sessionID: "session",
+    worktree: process.cwd(),
+    async ask() {},
+    ...overrides,
+  } satisfies ToolContext
+}
+
+async function processID(marker: string) {
+  let pid: number | undefined
+  for (let attempt = 0; attempt < 50 && !pid; attempt++) {
+    try {
+      pid = Number(await readFile(marker, "utf8"))
+    } catch {
+      await Bun.sleep(20)
+    }
+  }
+  expect(pid).toBeDefined()
+  return pid!
+}
+
+async function expectProcessExit(pid: number) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    try {
+      process.kill(pid, 0)
+    } catch {
+      break
+    }
+    await Bun.sleep(20)
+  }
+  expect(() => process.kill(pid, 0)).toThrow()
+}
+
+function killProcess(pid: number | undefined) {
+  if (!pid) return
+  try {
+    process.kill(pid, "SIGKILL")
+  } catch {
+    // The process may already have exited.
+  }
+}
+
 test("browser validates argv and runs Playwright CLI", async () => {
   const hooks = await Brandobot.server({} as never)
   const browser = hooks.tool?.browser
@@ -35,16 +83,7 @@ test("browser validates argv and runs Playwright CLI", async () => {
 
   const result = await browser!.execute(
     { args: ["--help"] },
-    {
-      abort: new AbortController().signal,
-      agent: "build",
-      directory: process.cwd(),
-      messageID: "message",
-      metadata() {},
-      sessionID: "session",
-      worktree: process.cwd(),
-      async ask() {},
-    } satisfies ToolContext,
+    testContext(),
   )
 
   expect(result).toContain("playwright-cli")
@@ -57,16 +96,7 @@ test("browser validates before installing Chromium", async () => {
   await expect(
     browser!.execute(
       { args: ["open", "https://example.com", "--browser=chromium", "--toString"] },
-      {
-        abort: new AbortController().signal,
-        agent: "build",
-        directory: process.cwd(),
-        messageID: "message",
-        metadata() {},
-        sessionID: "session",
-        worktree: process.cwd(),
-        async ask() {},
-      } satisfies ToolContext,
+      testContext(),
     ),
   ).rejects.toThrow("not a supported Playwright CLI option")
 })
@@ -181,50 +211,19 @@ test("process cancellation terminates child processes", async () => {
   const script = `Bun.spawn([process.execPath, "-e", ${JSON.stringify(child)}], { detached: true, stdout: "ignore", stderr: "ignore" }); setInterval(() => {}, 60000)`
 
   try {
-    execution = executeProcess(
-      [process.execPath, "-e", script],
-      {
-        abort: controller.signal,
-        agent: "build",
-        directory,
-        messageID: "message",
-        metadata() {},
-        sessionID: "session",
-        worktree: directory,
-        async ask() {},
-      } satisfies ToolContext,
-      { ...process.env, BRANDOBOT_MARKER: marker },
-    )
-    for (let attempt = 0; attempt < 50 && !childPID; attempt++) {
-      try {
-        childPID = Number(await readFile(marker, "utf8"))
-      } catch {
-        await Bun.sleep(20)
-      }
-    }
-    expect(childPID).toBeDefined()
+    execution = executeProcess([process.execPath, "-e", script], testContext({ abort: controller.signal, directory, worktree: directory }), {
+      ...process.env,
+      BRANDOBOT_MARKER: marker,
+    })
+    childPID = await processID(marker)
 
     controller.abort()
     expect(await execution).toMatchObject({ cancelled: true })
-    for (let attempt = 0; attempt < 50; attempt++) {
-      try {
-        process.kill(childPID!, 0)
-      } catch {
-        break
-      }
-      await Bun.sleep(20)
-    }
-    expect(() => process.kill(childPID!, 0)).toThrow()
+    await expectProcessExit(childPID)
   } finally {
     controller.abort()
     await execution?.catch(() => undefined)
-    if (childPID) {
-      try {
-        process.kill(childPID, "SIGKILL")
-      } catch {
-        // The assertion above already confirmed the child exited.
-      }
-    }
+    killProcess(childPID)
     await rm(directory, { recursive: true, force: true })
   }
 })
@@ -240,45 +239,15 @@ test("process timeout terminates child processes", async () => {
   try {
     const result = await executeProcess(
       [process.execPath, "-e", script],
-      {
-        abort: new AbortController().signal,
-        agent: "build",
-        directory,
-        messageID: "message",
-        metadata() {},
-        sessionID: "session",
-        worktree: directory,
-        async ask() {},
-      } satisfies ToolContext,
+      testContext({ directory, worktree: directory }),
       { ...process.env, BRANDOBOT_MARKER: marker },
       500,
     )
     expect(result).toMatchObject({ timedOut: true, cancelled: false })
-    for (let attempt = 0; attempt < 50 && !childPID; attempt++) {
-      try {
-        childPID = Number(await readFile(marker, "utf8"))
-      } catch {
-        await Bun.sleep(20)
-      }
-    }
-    expect(childPID).toBeDefined()
-    for (let attempt = 0; attempt < 50; attempt++) {
-      try {
-        process.kill(childPID!, 0)
-      } catch {
-        break
-      }
-      await Bun.sleep(20)
-    }
-    expect(() => process.kill(childPID!, 0)).toThrow()
+    childPID = await processID(marker)
+    await expectProcessExit(childPID)
   } finally {
-    if (childPID) {
-      try {
-        process.kill(childPID, "SIGKILL")
-      } catch {
-        // The assertion above already confirmed the child exited.
-      }
-    }
+    killProcess(childPID)
     await rm(directory, { recursive: true, force: true })
   }
 })
@@ -295,16 +264,7 @@ test("process cleanup terminates children spawned during cancellation", async ()
   try {
     const execution = executeProcess(
       [process.execPath, "-e", script],
-      {
-        abort: controller.signal,
-        agent: "build",
-        directory,
-        messageID: "message",
-        metadata() {},
-        sessionID: "session",
-        worktree: directory,
-        async ask() {},
-      } satisfies ToolContext,
+      testContext({ abort: controller.signal, directory, worktree: directory }),
       { ...process.env, BRANDOBOT_MARKER: marker, BRANDOBOT_READY: ready },
     )
     for (let attempt = 0; attempt < 50; attempt++) {
@@ -319,23 +279,9 @@ test("process cleanup terminates children spawned during cancellation", async ()
     controller.abort()
     expect(await execution).toMatchObject({ cancelled: true })
     childPID = Number(await readFile(marker, "utf8"))
-    for (let attempt = 0; attempt < 50; attempt++) {
-      try {
-        process.kill(childPID, 0)
-      } catch {
-        break
-      }
-      await Bun.sleep(20)
-    }
-    expect(() => process.kill(childPID!, 0)).toThrow()
+    await expectProcessExit(childPID)
   } finally {
-    if (childPID) {
-      try {
-        process.kill(childPID, "SIGKILL")
-      } catch {
-        // The assertion above already confirmed the child exited.
-      }
-    }
+    killProcess(childPID)
     await rm(directory, { recursive: true, force: true })
   }
 })
@@ -465,16 +411,7 @@ test("ephemeral UI tests use bundled Chromium and summarize results", async () =
 })
 
 test("ephemeral runner executes temporary passing and failing specs", async () => {
-  const context = {
-    abort: new AbortController().signal,
-    agent: "build",
-    directory: process.cwd(),
-    messageID: "message",
-    metadata() {},
-    sessionID: "session",
-    worktree: process.cwd(),
-    async ask() {},
-  } satisfies ToolContext
+  const context = testContext()
   const passing = await createEphemeralTest('import { test } from "@playwright/test"; test("passes", () => {})')
   const failing = await createEphemeralTest('import { test } from "@playwright/test"; test("fails", () => { throw new Error("expected failure") })')
 
@@ -522,16 +459,7 @@ test("ephemeral UI tests report an already-cancelled request", async () => {
 
   const result = await runner!.execute(
     { source: 'import { test } from "@playwright/test"; test("never runs", () => {})' },
-    {
-      abort: controller.signal,
-      agent: "build",
-      directory: process.cwd(),
-      messageID: "cancelled",
-      metadata() {},
-      sessionID: "session",
-      worktree: process.cwd(),
-      async ask() {},
-    } satisfies ToolContext,
+    testContext({ abort: controller.signal, messageID: "cancelled" }),
   )
 
   expect(result).toMatchObject({ metadata: { status: "cancelled", runner: "brandobot" } })

@@ -343,10 +343,12 @@ function isPlaywrightEnvironment(key: string) {
   )
 }
 
+function sanitizedPlaywrightEnvironment(source = process.env) {
+  return Object.fromEntries(Object.entries(source).filter(([key]) => !isPlaywrightEnvironment(key)))
+}
+
 export function playwrightEnvironment(source = process.env) {
-  const environment = Object.fromEntries(
-    Object.entries(source).filter(([key]) => !isPlaywrightEnvironment(key)),
-  )
+  const environment = sanitizedPlaywrightEnvironment(source)
   environment.PLAYWRIGHT_MCP_CONFIG = playwrightConfig
   environment.PLAYWRIGHT_MCP_ISOLATED = "true"
   environment.PLAYWRIGHT_BROWSERS_PATH = brandobotBrowserCache
@@ -515,11 +517,7 @@ export default defineConfig({
 }
 
 function playwrightTestEnvironment(source = process.env, reportFile?: string) {
-  const environment = Object.fromEntries(
-    Object.entries(source).filter(([key]) => {
-      return !isPlaywrightEnvironment(key)
-    }),
-  )
+  const environment = sanitizedPlaywrightEnvironment(source)
   environment.PLAYWRIGHT_BROWSERS_PATH = brandobotBrowserCache
   if (reportFile) environment.PLAYWRIGHT_JSON_OUTPUT_FILE = reportFile
   return environment
