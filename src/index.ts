@@ -27,8 +27,7 @@ const ephemeralWorkspaceHeartbeat = 60_000
 const ephemeralWorkspaceLimit = 20
 const ephemeralWorkspaceRetention = 24 * 60 * 60_000
 const cancellationMessage = "Brandobot operation cancelled."
-const globalCommands = new Set(["install", "install-browser"])
-const restrictedCommands = new Set(["attach", "close-all", "kill-all", "list", "show"])
+const restrictedCommands = new Set(["attach", "close-all", "install", "install-browser", "kill-all", "list", "show"])
 const openFlags = new Set(["browser", "device", "headed", "mobile", "persistent", "profile"])
 const sessionName = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
 const playwrightConfigDirectory = join(tmpdir(), `brandobot-playwright-${process.pid}`)
@@ -137,9 +136,12 @@ export function playwrightArgs(args: string[], sessionID: string, session?: stri
   const timestampedArgs = timestampedArtifactArgs(command, args)
   requiresArtifactDirectory(command, timestampedArgs)
   if (command && restrictedCommands.has(command)) {
+    if (command === "install" || command === "install-browser") {
+      throw new Error(`${command} is not available because Brandobot manages browser installation.`)
+    }
     throw new Error(`${command} is not available because it can access other Playwright sessions.`)
   }
-  if (!command || globalCommands.has(command)) return timestampedArgs
+  if (!command) return timestampedArgs
   if (session) {
     if (!sessionName.test(session)) throw new Error("Playwright session names may contain only letters, numbers, hyphens, and underscores.")
     return [`-s=${derivedSessionName(sessionID, session)}`, ...timestampedArgs]
@@ -830,8 +832,10 @@ export default Object.assign({ id: "@bwanamaker/brandobot", server: Brandobot } 
   cleanupEphemeralWorkspaces,
   chromiumInstallationComplete,
   chromiumRequested,
+  createEphemeralTest,
   defaultBrowserCommand,
   ephemeralTestConfig,
+  executeEphemeralTestWorkspace,
   executeProcess,
   playwrightArgs,
   playwrightCommand,

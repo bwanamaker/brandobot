@@ -16,7 +16,9 @@ const {
   cleanupEphemeralWorkspaces,
   chromiumInstallationComplete,
   chromiumRequested,
+  createEphemeralTest,
   ephemeralTestConfig,
+  executeEphemeralTestWorkspace,
   executeProcess,
   playwrightTestEnvironment,
   playwrightTestStatus,
@@ -77,7 +79,8 @@ test("browser sessions default to the OpenCode conversation", () => {
   expect(labeledSession[0]).toMatch(/^-s=brandobot-[a-f0-9]{54}$/)
   expect(labeledSession[0]).not.toBe(automaticSession[0])
   expect(labeledSession.slice(1)).toEqual(["open", "https://example.com"])
-  expect(playwrightArgs(["install-browser"], "session-id")).toEqual(["install-browser"])
+  expect(() => playwrightArgs(["install-browser"], "session-id")).toThrow("not available")
+  expect(() => playwrightArgs(["install", "--skills", "agents", "--global"], "session-id")).toThrow("not available")
   expect(playwrightArgs(["config-print"], "session-id")[1]).toBe("config-print")
   expect(playwrightArgs(["open", "https://example.com"], "session/../id")[0]).not.toBe(
     playwrightArgs(["open", "https://example.com"], "session?../id")[0],
@@ -399,6 +402,39 @@ test("ephemeral UI tests use bundled Chromium and summarize results", async () =
       "checkout.spec.ts > guest checkout: second failure",
     ],
   })
+})
+
+test("ephemeral runner executes temporary passing and failing specs", async () => {
+  const context = {
+    abort: new AbortController().signal,
+    agent: "build",
+    directory: process.cwd(),
+    messageID: "message",
+    metadata() {},
+    sessionID: "session",
+    worktree: process.cwd(),
+    async ask() {},
+  } satisfies ToolContext
+  const passing = await createEphemeralTest('import { test } from "@playwright/test"; test("passes", () => {})')
+  const failing = await createEphemeralTest('import { test } from "@playwright/test"; test("fails", () => { throw new Error("expected failure") })')
+
+  try {
+    const passingResult = await executeEphemeralTestWorkspace(passing, context)
+    expect(passingResult).toMatchObject({
+      metadata: { status: "passed", passed: 1, failed: 0 },
+    })
+    expect(passingResult.metadata.artifacts.some((artifact) => artifact.endsWith("/.last-run.json"))).toBe(true)
+    const failingResult = await executeEphemeralTestWorkspace(failing, context)
+    expect(failingResult).toMatchObject({
+      metadata: { status: "failed", passed: 0, failed: 1 },
+    })
+    expect(failingResult.metadata.artifacts.some((artifact) => artifact.endsWith("/.last-run.json"))).toBe(true)
+  } finally {
+    await Promise.all([
+      rm(passing.directory, { recursive: true, force: true }),
+      rm(failing.directory, { recursive: true, force: true }),
+    ])
+  }
 })
 
 test("waitForAbort detaches its listener when the value settles", async () => {
