@@ -1,6 +1,6 @@
 {
   "name": "@bwanamaker/brandobot",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "An OpenCode plugin that controls browsers through Playwright CLI.",
   "license": "Apache-2.0",
   "repository": {
@@ -34,7 +34,8 @@
     "prepack": "npm run build"
   },
   "engines": {
-    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
+    "opencode": ">=1.18.25"
   },
   "keywords": [
     "opencode",
@@ -44,7 +45,8 @@
   ],
   "dependencies": {
     "@opencode-ai/plugin": "^1.18.25",
-    "@playwright/cli": "^0.1.18"
+    "@playwright/cli": "0.1.18",
+    "@playwright/test": "1.63.0-alpha-2026-08-05"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

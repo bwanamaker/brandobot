@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here.
 
+## [0.3.0] - 2026-09-15
+
+### Added
+
+- Added the `run_ui_test` tool for running temporary TypeScript Playwright Test specs with a bundled `@playwright/test` runner.
+- Added managed Chromium downloads shared by the `browser` and `run_ui_test` tools.
+- Added bounded structured test results with temporary trace, screenshot, and video evidence.
+- Added bounded runner timeouts and best-effort cancellation cleanup.
+- Added documentation for code-execution permissions and temporary-test limitations.
+
+### Changed
+
+- Pinned Playwright dependencies so the CLI and test runner share one browser cache.
+- Expanded Playwright environment sanitization to inherited debug configuration.
+- Stripped ANSI escape codes from test results and diagnostics.
+
+### Fixed
+
+- Fixed plugin initialization when OpenCode treats Brandobot's helper exports as legacy plugins.
+
 ## [0.2.1] - 2026-09-13
 
 ### Fixed
