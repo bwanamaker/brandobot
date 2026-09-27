@@ -100,20 +100,6 @@ To require approval before browser operations, configure the OpenCode permission
 
 ## Development
 
-### Marketing site
-
-The static marketing site lives in [`public/`](./public). It uses plain HTML, CSS, and JavaScript with no build step, analytics, or third-party runtime requests. Preview it from the repository root:
-
-```bash
-python3 -m http.server 4173 --bind 127.0.0.1 --directory public
-```
-
-Visit `http://localhost:4173`. For deployment, publish `public/` as the document root on any static host; relative asset URLs also support hosting under a subdirectory. The theme follows the system preference until a visitor chooses light or dark mode.
-
-Original robot artwork is included as editable SVGs under the repository's Apache-2.0 license. The bundled [Space Grotesk](https://github.com/floriankarsten/space-grotesk) font is distributed under its [SIL Open Font License](./public/assets/OFL.txt).
-
-### Plugin
-
 ```bash
 bun install
 bun run typecheck

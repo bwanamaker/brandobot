@@ -11,10 +11,6 @@ All notable changes to this project are documented here.
 - Added a copyable OpenCode configuration snippet and a no-JavaScript fallback for the installation content.
 - Added local Space Grotesk font assets under the SIL Open Font License.
 
-### Changed
-
-- Documented how to preview and deploy the static marketing site from the `public/` directory.
-
 ## [0.3.0] - 2026-09-15
 
 ### Added
