@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 560" fill="none">
+  <defs>
+    <linearGradient id="red" x1="155" y1="125" x2="378" y2="395" gradientUnits="userSpaceOnUse"><stop stop-color="#fc7765"/><stop offset=".35" stop-color="#e44a3a"/><stop offset=".7" stop-color="#c73129"/><stop offset="1" stop-color="#8c211d"/></linearGradient>
+    <linearGradient id="body" x1="185" y1="283" x2="342" y2="422" gradientUnits="userSpaceOnUse"><stop stop-color="#f16a57"/><stop offset=".43" stop-color="#dd4435"/><stop offset="1" stop-color="#a12822"/></linearGradient>
+    <linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fffef7"/><stop offset=".27" stop-color="#e3e4df"/><stop offset=".5" stop-color="#a7abae"/><stop offset=".73" stop-color="#e7e7e1"/><stop offset="1" stop-color="#747c80"/></linearGradient>
+    <linearGradient id="dark" x1="192" y1="198" x2="332" y2="263" gradientUnits="userSpaceOnUse"><stop stop-color="#414c50"/><stop offset=".5" stop-color="#242c30"/><stop offset="1" stop-color="#151b20"/></linearGradient>
+    <linearGradient id="cap" x1="163" y1="112" x2="339" y2="160" gradientUnits="userSpaceOnUse"><stop stop-color="#ed5947"/><stop offset=".6" stop-color="#cd362d"/><stop offset="1" stop-color="#9e2821"/></linearGradient>
+    <linearGradient id="boot" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ed5847"/><stop offset="1" stop-color="#ad2a23"/></linearGradient>
+    <radialGradient id="ground"><stop stop-color="#343738" stop-opacity=".2"/><stop offset="1" stop-color="#343738" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="279" cy="504" rx="162" ry="26" fill="url(#ground)"/>
+  <g transform="rotate(-7 270 285)">
+    <!-- Springy legs and oversized space-age boots. -->
+    <path d="m218 388-4 57" stroke="#525c60" stroke-width="32" stroke-linecap="round"/>
+    <path d="m303 388 14 54" stroke="#525c60" stroke-width="32" stroke-linecap="round"/>
+    <g stroke="url(#silver)" stroke-width="10" stroke-linecap="round"><path d="m201 411 28 2m-29 12 28 2m72-13 27-7m-24 20 27-7"/></g>
+    <path d="M195 441c-17 5-27 20-28 34-1 12 15 20 40 20h32c14 0 19-7 17-18l-6-25c-2-12-34-17-55-11Z" fill="url(#boot)" stroke="#8b2823" stroke-width="2"/>
+    <path d="M299 438c16-7 39-5 47 3l21 28c7 12-1 23-19 25l-29 3c-23 2-35-4-35-17l1-25c0-8 5-13 14-17Z" fill="url(#boot)" stroke="#8b2823" stroke-width="2"/>
+    <path d="M171 479c19 10 57 11 81 3m38 0c25 5 52 1 72-6" stroke="#76251f" stroke-width="6" stroke-linecap="round"/>
+    <path d="M184 463c7-11 23-13 34-11m91-2c9-3 18-2 23 1" stroke="#ff9b80" stroke-width="5" stroke-linecap="round" opacity=".65"/>
+    <!-- Left arm and friendly mitten. -->
+    <circle cx="181" cy="310" r="24" fill="url(#silver)" stroke="#747a7c" stroke-width="2"/>
+    <path d="m170 321-29 31" stroke="#505a5d" stroke-width="26" stroke-linecap="round"/>
+    <g stroke="url(#silver)" stroke-width="7" stroke-linecap="round"><path d="m151 325 19 17m-27-8 19 17m-27-8 19 17"/></g>
+    <path d="M123 347c-8 4-18 19-15 31 2 12 14 21 27 18 9-2 18-17 17-27-1-14-17-28-29-22Z" fill="url(#red)" stroke="#a62e26" stroke-width="2"/>
+    <path d="m120 374 7-13m4 19 7-12" stroke="#9e2b23" stroke-width="3" stroke-linecap="round"/>
+    <!-- Raised arm with a silver elbow and a waving hand. -->
+    <circle cx="341" cy="309" r="23" fill="url(#silver)" stroke="#747a7c" stroke-width="2"/>
+    <path d="m352 302 32-24 16-37" stroke="#515b5e" stroke-width="26" stroke-linecap="round"/>
+    <path d="m353 292 12 19m-3-26 12 19m11-34 23 9m-19-19 23 9m-19-19 23 9" stroke="url(#silver)" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="386" cy="277" r="16" fill="url(#silver)" stroke="#747a7c" stroke-width="2"/>
+    <circle cx="386" cy="277" r="7" fill="#535e63"/>
+    <g transform="rotate(14 404 218)">
+      <path d="M386 239c-10-10-24-23-22-31 2-9 10-9 16-4l9 8-2-32c0-11 13-13 16-3l3 27 4-39c1-10 15-9 15 1l-2 38 9-28c3-10 16-6 13 5l-9 31 11-17c6-8 17-1 11 8l-20 35c-7 14-17 20-29 17-11-2-17-7-23-16Z" fill="url(#red)" stroke="#9d2e27" stroke-width="2"/>
+      <path d="m399 230 20 6m-19-12 21 6" stroke="#ff8c73" stroke-width="2" stroke-linecap="round" opacity=".5"/>
+    </g>
+    <!-- Rounded chassis. -->
+    <path d="M204 282c25-13 93-14 120 1 22 12 31 60 23 90-7 29-41 40-76 40-39 0-74-6-86-33-11-25-4-84 19-98Z" fill="url(#body)" stroke="#922820" stroke-width="2"/>
+    <path d="M200 303c8-10 17-14 27-17" stroke="#ffb094" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+    <path d="M191 369c11 31 53 36 83 33 25-2 50-8 62-23" stroke="#ff7d62" stroke-width="2" opacity=".45"/>
+    <circle cx="266" cy="338" r="37" fill="#a32f26"/>
+    <circle cx="265" cy="335" r="32" fill="url(#silver)" stroke="#858b8c" stroke-width="2"/>
+    <circle cx="265" cy="335" r="24" fill="#323b3f" stroke="#fff" stroke-opacity=".4"/>
+    <path d="m263 317-9 20h11l-2 15 13-22h-12l6-13Z" fill="#f0f0e8"/>
+    <rect x="245" y="383" width="41" height="7" rx="3.5" fill="#84251f"/>
+    <circle cx="249" cy="386.5" r="2" fill="#ffbaa0"/>
+    <path d="M256 386.5h19" stroke="#d05442" stroke-width="2" stroke-linecap="round"/>
+    <path d="M244 276v10c7 7 40 7 47-1v-11" fill="url(#silver)" stroke="#757e81" stroke-width="2"/>
+    <!-- Ears, red head shell, and inset silver faceplate. -->
+    <rect x="158" y="203" width="23" height="44" rx="10" fill="#992b25" stroke="#86251f" stroke-width="2"/>
+    <rect x="155" y="211" width="12" height="25" rx="5" fill="url(#silver)"/>
+    <rect x="351" y="203" width="23" height="43" rx="10" fill="#992b25" stroke="#86251f" stroke-width="2"/>
+    <rect x="366" y="211" width="12" height="25" rx="5" fill="url(#silver)"/>
+    <rect x="169" y="145" width="194" height="142" rx="58" fill="url(#red)" stroke="#9d2a23" stroke-width="2"/>
+    <path d="M181 204c3-30 17-41 35-45" stroke="#ffac8f" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+    <rect x="184" y="190" width="163" height="82" rx="34" fill="url(#silver)" stroke="#92362b" stroke-width="2"/>
+    <rect x="193" y="198" width="145" height="65" rx="27" fill="url(#dark)" stroke="#636c70" stroke-width="2"/>
+    <path d="M204 216c2-7 8-11 15-11h99" stroke="#839294" stroke-width="2" opacity=".5" stroke-linecap="round"/>
+    <rect x="220" y="212" width="17" height="25" rx="8.5" fill="#fff8df"/>
+    <rect x="293" y="212" width="17" height="25" rx="8.5" fill="#fff8df"/>
+    <rect x="223" y="215" width="5" height="9" rx="2.5" fill="#fff"/>
+    <rect x="296" y="215" width="5" height="9" rx="2.5" fill="#fff"/>
+    <path d="M251 244c8 7 21 7 28 0" stroke="#fff8df" stroke-width="4" stroke-linecap="round"/>
+    <ellipse cx="213" cy="240" rx="7" ry="3" fill="#e46b54" opacity=".5"/>
+    <ellipse cx="317" cy="240" rx="7" ry="3" fill="#e46b54" opacity=".5"/>
+    <!-- Original baseball cap, with a stitched B patch. -->
+    <path d="M177 174c-2-29 5-52 28-70 23-17 64-21 94-9 25 10 41 32 44 65l-43 21-123-7Z" fill="url(#cap)" stroke="#a22b24" stroke-width="2"/>
+    <path d="M200 141c4-22 24-38 44-40" stroke="#ff9379" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+    <path d="M271 96c22 15 30 45 26 68M223 103c-11 18-15 36-13 55" stroke="#a32c25" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <ellipse cx="255" cy="93" rx="10" ry="5" fill="#b93128" stroke="#e45b47" stroke-width="2"/>
+    <path d="M176 167c50-10 105-11 156-4 21 3 55 17 56 25 1 8-18 14-39 13-25-2-52-12-73-14-36-4-70-2-101-5-8-1-10-11 1-15Z" fill="#af2d25" stroke="#912720" stroke-width="2"/>
+    <path d="M178 169c56-9 109-9 158 1 20 4 36 10 46 17" stroke="#f1775c" stroke-width="3" stroke-linecap="round"/>
+    <path d="M176 179c34 3 66 0 102 5 31 4 49 12 72 14" stroke="#5d211e" stroke-width="3" stroke-linecap="round"/>
+    <g transform="rotate(-5 260 135)">
+      <rect x="241" y="111" width="38" height="44" rx="13" fill="#a82c25" stroke="#f0765b" stroke-width="1.5"/>
+      <path d="M251 121h10c9 0 10 11 0 11h-10m0 0h11c10 0 10 13-1 13h-10v-24Z" stroke="#fff5da" stroke-width="5" stroke-linejoin="round"/>
+    </g>
+    <circle cx="181" cy="244" r="2.5" fill="#f9a48b"/>
+    <circle cx="353" cy="244" r="2.5" fill="#f9a48b"/>
+  </g>
+  <g stroke="#dc4939" stroke-width="2.5" stroke-linecap="round"><path d="m440 148 5-12m13 21 11-8m-24 26 16-1"/></g>
+</svg>

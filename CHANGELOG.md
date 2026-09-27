@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## [0.3.1] - 2026-09-27
+
+### Added
+
+- Added a responsive static marketing site under `public/` with Orbit City styling, original Brandobot artwork, and light/dark mode support.
+- Added project, installation, feature, and open-source contribution messaging with links to the repository, npm, OpenCode, and Playwright.
+- Added a copyable OpenCode configuration snippet and a no-JavaScript fallback for the installation content.
+- Added local Space Grotesk font assets under the SIL Open Font License.
+
 ## [0.3.0] - 2026-09-15
 
 ### Added
