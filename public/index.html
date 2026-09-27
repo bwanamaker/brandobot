@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="Meet Brandobot, the open-source OpenCode plugin for real browser interaction, isolated sessions, and on-the-fly Playwright UI tests. A little bot. A whole lot of browser.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Brandobot — Your AI’s new browser buddy">
+    <meta property="og:description" content="Give OpenCode a real browser. Inspect, interact, capture, and check your UI with a friendly little open-source robot.">
+    <meta name="theme-color" content="#f6f5f2">
+    <title>Brandobot — Your AI’s new browser buddy</title>
+    <link rel="icon" href="./assets/brandobot-mark.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./script.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="arrow-up-right" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6h12v12"/></symbol>
+      <symbol id="arrow-right" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+      <symbol id="github" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.99 1.03-2.69-.1-.26-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03a9.58 9.58 0 0 1 5 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.39.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.76c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+      <symbol id="moon" viewBox="0 0 24 24"><path d="M20.8 13.2A9 9 0 0 1 10.8 3.1 9 9 0 1 0 20.8 13.2Z"/></symbol>
+      <symbol id="copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="spark" viewBox="0 0 24 24"><path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z"/></symbol>
+      <symbol id="browser" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 9h20M6 6.5h.01M9 6.5h.01"/></symbol>
+    </svg>
+
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="wordmark" href="#" aria-label="Brandobot home">
+          <img src="./assets/brandobot-mark.svg" width="39" height="39" alt="">
+          brandobot<span class="wordmark-dot">.</span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a href="#features">The features</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="https://github.com/bwanamaker/brandobot#readme">Docs <svg class="icon small"><use href="#arrow-up-right"/></svg></a>
+        </nav>
+        <div class="header-actions">
+          <button class="theme-toggle icon-button" type="button" aria-label="Dark mode" aria-pressed="false" hidden>
+            <svg class="icon sun-icon" aria-hidden="true"><use href="#sun"/></svg>
+            <svg class="icon moon-icon" aria-hidden="true"><use href="#moon"/></svg>
+          </button>
+          <a class="button button-small button-outline github-link" href="https://github.com/bwanamaker/brandobot" aria-label="GitHub">
+            <svg class="icon" aria-hidden="true"><use href="#github"/></svg><span>GitHub</span><svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg>
+          </a>
+        </div>
+      </header>
+
+      <main id="main">
+        <section class="hero" aria-labelledby="hero-heading">
+          <div class="hero-copy">
+            <div class="eyebrow hero-eyebrow"><span class="signal-dot"></span> YOUR OPENCODE BROWSER BUDDY</div>
+            <h1 id="hero-heading">A little bot.<br>A whole lot<br><span>of browser.</span></h1>
+            <p>Give your AI a real browser, not a best guess. Brandobot brings browser control and on-the-fly UI checks right into OpenCode.</p>
+            <div class="hero-actions">
+              <a class="button button-red" href="#install">Meet your new copilot <svg class="icon" aria-hidden="true"><use href="#arrow-right"/></svg></a>
+              <a class="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↘</span></a>
+            </div>
+            <div class="hero-footnote"><span class="tiny-spark" aria-hidden="true">✳</span> Open source. Yours to explore.</div>
+          </div>
+
+          <div class="hero-art">
+            <div class="orbit orbit-one" aria-hidden="true"></div>
+            <div class="orbit orbit-two" aria-hidden="true"></div>
+            <span class="art-star star-one" aria-hidden="true">✦</span>
+            <span class="art-star star-two" aria-hidden="true">✧</span>
+            <span class="orbit-dot" aria-hidden="true"></span>
+            <div class="floating-label label-browser" aria-hidden="true"><svg class="icon"><use href="#browser"/></svg> Real browser. Real results.</div>
+            <div class="illustrated-window" aria-hidden="true">
+              <div class="window-toolbar"><span></span><span></span><span></span><span class="window-url">localhost:3000</span></div>
+              <div class="window-body"><div class="mock-sidebar"><i></i><i></i><i></i></div><div class="mock-content"><i></i><i></i><div><b></b><b></b></div></div></div>
+              <span class="mock-cursor"><svg viewBox="0 0 30 36"><path d="m3 2 23 19-13 1-6 11Z"/></svg></span>
+            </div>
+            <img class="hero-robot" src="./assets/brandobot.svg" width="560" height="560" fetchpriority="high" alt="Brandobot, a smiling red robot with silver joints and a red baseball cap with a white B, waving hello.">
+            <div class="floating-label label-ready" aria-hidden="true"><span class="signal-dot"></span> One small bot. Ready for liftoff.</div>
+            <span class="art-caption eyebrow">LESS GUESSWORK. MORE BEEP BOOP.</span>
+          </div>
+        </section>
+
+        <div class="credentials" aria-label="Project foundations">
+          <p>A friendly face.<br><strong>A serious little toolkit.</strong></p>
+          <a href="https://opencode.ai"><span class="credential-mark opencode-mark" aria-hidden="true">▣</span><span><small>BUILT FOR</small><strong>OpenCode</strong></span><svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a>
+          <a href="https://playwright.dev/agent-cli/introduction"><svg class="icon credential-mark" aria-hidden="true"><use href="#browser"/></svg><span><small>POWERED BY</small><strong>Playwright</strong></span><svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a>
+          <a href="https://github.com/bwanamaker/brandobot/blob/main/LICENSE"><svg class="icon credential-mark" aria-hidden="true"><use href="#spark"/></svg><span><small>OPEN BY DESIGN</small><strong>Apache 2.0</strong></span><svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a>
+        </div>
+
+        <section class="section features-section" id="features" aria-labelledby="features-heading">
+          <div class="section-heading">
+            <div><p class="eyebrow"><span>01 /</span> SMALL BOT, BIG TOOLKIT</p><h2 id="features-heading">Less “should work.”<br>More <span class="serif-accent">“checked it.”</span></h2></div>
+            <p>Your agent writes the code.<br>Brandobot helps it see what happens next.</p>
+          </div>
+          <div class="feature-grid">
+            <article class="feature-card">
+              <div class="feature-illustration browser-illustration" aria-hidden="true">
+                <div class="mini-browser"><div class="mini-toolbar"><span>● ● ●</span><span>your-app /</span></div><div class="mini-browser-content"><span class="skeleton"></span><span class="skeleton short"></span><span class="mini-button">Let’s go <span>↗</span></span></div></div>
+                <span class="element-ref">[e12] button</span><svg class="feature-cursor" viewBox="0 0 30 36"><path d="m3 2 23 19-13 1-6 11Z"/></svg>
+              </div>
+              <div class="feature-copy"><span class="eyebrow feature-number">01 — BROWSER CONTROL</span><h3>See it. Click it. Check it.</h3><p>Navigate pages, inspect snapshots, fill forms, and follow the flow. Real interaction, powered by Playwright CLI.</p><a class="text-link" href="https://github.com/bwanamaker/brandobot#browser-tool">Explore browser tools <svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a></div>
+            </article>
+            <article class="feature-card">
+              <div class="feature-illustration sessions-illustration" aria-hidden="true">
+                <div class="session-pill"><span class="session-icon">A</span><span>admin session<small>Cookies, history &amp; storage</small></span><svg class="icon"><use href="#check"/></svg></div>
+                <div class="session-divider"><span></span> NICELY SEPARATED <span></span></div>
+                <div class="session-pill"><span class="session-icon session-icon-light">B</span><span>shop session<small>Cookies, history &amp; storage</small></span><svg class="icon"><use href="#check"/></svg></div>
+              </div>
+              <div class="feature-copy"><span class="eyebrow feature-number">02 — ISOLATED SESSIONS</span><h3>Your context stays yours.</h3><p>Each OpenCode conversation gets its own browser state. Add labeled sessions to keep multiple workflows neatly apart.</p><a class="text-link" href="https://github.com/bwanamaker/brandobot#browser-tool">Get to know sessions <svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a></div>
+            </article>
+            <article class="feature-card">
+              <div class="feature-illustration tests-illustration" aria-hidden="true">
+                <div class="test-receipt"><span class="receipt-title">A QUICK SANITY CHECK</span><span class="receipt-line"><svg class="icon"><use href="#check"/></svg> Homepage is looking good</span><div class="receipt-result"><strong>1 passed</strong><span>EXAMPLE RESULT</span></div></div>
+                <span class="test-spark">✳</span>
+              </div>
+              <div class="feature-copy"><span class="eyebrow feature-number">03 — EPHEMERAL UI TESTS</span><h3>Quick checks. No baggage.</h3><p>Run a real Playwright Test spec in a temporary workspace. Get diagnostics and evidence without adding files to your project.</p><a class="text-link" href="https://github.com/bwanamaker/brandobot#ephemeral-ui-tests">Meet on-the-fly tests <svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a></div>
+            </article>
+          </div>
+          <div class="small-features">
+            <div><svg class="icon" aria-hidden="true"><use href="#spark"/></svg><p><strong>The right tool for the job.</strong> Guidance for browsing, opening links, reading pages, and running UI checks.</p></div>
+            <div><svg class="icon" aria-hidden="true"><use href="#browser"/></svg><p><strong>Keep the evidence.</strong> Timestamped screenshot and video filenames keep new captures from overwriting old ones.</p></div>
+          </div>
+        </section>
+
+        <section class="workflow-panel" id="how-it-works" aria-labelledby="workflow-heading">
+          <div class="workflow-copy"><p class="eyebrow"><span>02 /</span> FROM PROMPT TO PROOF</p><h2 id="workflow-heading">Stay in the flow.<br>Let the bot browse.</h2><p>No separate browser dashboard. Just ask your OpenCode agent to take a look, try a flow, or check that your UI does what it says on the tin.</p><a class="text-link" href="https://github.com/bwanamaker/brandobot#choosing-tools">A little more about the tools <svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a><div class="workflow-note"><svg class="icon" aria-hidden="true"><use href="#spark"/></svg><span>Built into your conversation.<br>Backed by a real browser.</span></div></div>
+          <div class="workflow-example">
+            <div class="example-heading"><span class="signal-dot"></span><span>OPENCODE + BRANDOBOT</span><span>EXAMPLE WORKFLOW</span></div>
+            <div class="prompt-bubble"><span class="prompt-symbol" aria-hidden="true">&gt;</span><p>“Open my local app and check that the signup form works.”</p></div>
+            <ol class="workflow-steps">
+              <li><span class="step-marker">1</span><div><strong>Take a look around</strong><p>Open the app. Get a fresh page snapshot.</p><code>browser → open · snapshot</code></div></li>
+              <li><span class="step-marker">2</span><div><strong>Try the real thing</strong><p>Fill the fields. Click submit. Inspect the result.</p><code>browser → fill · click · snapshot</code></div></li>
+              <li><span class="step-marker">3</span><div><strong>Put it to the test</strong><p>Run a focused check and report what happened.</p><code>run_ui_test → Playwright Test</code></div></li>
+            </ol>
+            <p class="evidence-note">Temporary checks give you local evidence. Save lasting regression tests with your project’s own test runner.</p>
+          </div>
+        </section>
+
+        <section class="section install-section" id="install" aria-labelledby="install-heading">
+          <div class="install-copy"><p class="eyebrow"><span>03 /</span> A SMALL STEP FOR YOUR CONFIG</p><h2 id="install-heading">Ready for<br><span class="serif-accent">liftoff?</span> <svg class="heading-spark" aria-hidden="true"><use href="#spark"/></svg></h2><p>Your new browser buddy is just one plugin away.</p><ol class="install-steps"><li><span>01</span><p>Add Brandobot to your <code>opencode.json</code>.<small>Already have plugins? Add it to your existing array.</small></p></li><li><span>02</span><p>Restart OpenCode.<small>The plugin and Playwright CLI install on startup.</small></p></li><li><span>03</span><p>Ask your agent to open a page.<small>Managed Chromium downloads when first needed.</small></p></li></ol></div>
+          <div class="install-code-wrap">
+            <div class="code-card"><div class="code-toolbar"><span><span class="code-file-dot"></span> opencode.json</span><button class="copy-button" type="button" hidden><svg class="icon small" aria-hidden="true"><use href="#copy"/></svg><span>Copy</span></button></div><pre tabindex="0" aria-label="OpenCode plugin configuration"><code id="install-code">{
+  <span class="code-key">"$schema"</span>: <span class="code-string">"https://opencode.ai/config.json"</span>,
+  <span class="code-key">"plugin"</span>: [<span class="code-string">"@bwanamaker/brandobot"</span>]
+}</code></pre><div class="code-footer"><svg class="icon small" aria-hidden="true"><use href="#check"/></svg> Little config. Big possibilities.</div></div>
+            <p class="copy-status" role="status" aria-live="polite"></p>
+            <p class="install-requirements">Requires OpenCode ≥1.18.25 and Node.js ^22.22.2, ^24.15.0, or ≥26.0.0. On Linux, browser system dependencies may need a separate install.</p>
+            <div class="install-links"><a class="text-link" href="https://github.com/bwanamaker/brandobot#install">Full installation guide <svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a><a class="text-link" href="https://www.npmjs.com/package/@bwanamaker/brandobot">View on npm <svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a></div>
+          </div>
+        </section>
+
+        <section class="open-source-banner" aria-labelledby="open-source-heading">
+          <div class="community-mark" aria-hidden="true"><svg><use href="#spark"/></svg></div><div><p class="eyebrow">OPEN SOURCE. OPEN POSSIBILITIES.</p><h2 id="open-source-heading">Good robots share their source.</h2><p>Read the code. Report a bug. Make your first contribution.<br>There’s always room for another human on the team.</p></div><a class="button button-ink" href="https://github.com/bwanamaker/brandobot"><svg class="icon" aria-hidden="true"><use href="#github"/></svg> Find us on GitHub <svg class="icon small" aria-hidden="true"><use href="#arrow-up-right"/></svg></a>
+        </section>
+      </main>
+
+      <footer class="site-footer"><div><a class="wordmark" href="#" aria-label="Brandobot home"><img src="./assets/brandobot-mark.svg" width="33" height="33" alt="">brandobot<span class="wordmark-dot">.</span></a><p>A little bot with a bright future.</p></div><nav aria-label="Project resources"><a href="https://github.com/bwanamaker/brandobot#readme">Docs</a><a href="https://github.com/bwanamaker/brandobot/issues">Issues</a><a href="https://github.com/bwanamaker/brandobot#development">Contribute</a><a href="https://github.com/bwanamaker/brandobot/blob/main/LICENSE">Apache 2.0</a></nav><span class="footer-signoff">Made for humans &amp; their agents. <span aria-hidden="true">✳</span></span></footer>
+    </div>
+  </body>
+</html>
