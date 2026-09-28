@@ -191,7 +191,8 @@ test("Playwright open and artifacts use isolated configuration", () => {
   const firstOutput = playwrightOutputDirectory(first)
   const secondOutput = playwrightOutputDirectory(second)
 
-  expect(command.slice(1, 4)).toEqual(["--config", expect.stringContaining("brandobot-playwright-"), "-s=" + first[0].slice(3)])
+  expect(command[0]).toBe("node")
+  expect(command.slice(2, 5)).toEqual(["--config", expect.stringContaining("brandobot-playwright-"), "-s=" + first[0].slice(3)])
   expect(command).toContain("open")
   expect(firstOutput.startsWith(tmpdir())).toBe(true)
   expect(firstOutput).toContain("brandobot-playwright-")
