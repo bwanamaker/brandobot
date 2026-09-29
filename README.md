@@ -29,13 +29,15 @@ pi install npm:@bwanamaker/brandobot
 
 Run `/reload` in an existing Pi session or restart Pi. Brandobot registers `open_url`, `browser`, and `run_ui_test` and adds Pi-specific tool guidance. Browser sessions and optional labels are scoped to the current Pi session, including after switching or forking sessions.
 
-For local development:
+To install from a local checkout, build the extension and add the checkout as a project package:
 
 ```bash
 bun install
 bun run build
-pi --extension ./dist/pi.js
+pi install -l .
 ```
+
+Pi records the package in `.pi/settings.json` and loads it after you grant project trust. Run `/reload` in an existing session or restart Pi after building changes. To load the built extension for one run without adding it to settings, use `pi --extension ./dist/pi.js`.
 
 The Pi extension runs on Node.js; Bun is only needed for development. Compatibility is checked against `@earendil-works/pi-coding-agent` 0.87.1. Pi supplies its own extension API and TypeBox runtime.
 
