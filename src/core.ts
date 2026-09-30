@@ -369,6 +369,19 @@ export function playwrightOutputDirectory(args: string[]) {
   return join(playwrightConfigDirectory, "artifacts", session)
 }
 
+export const playwrightCommandHint =
+  `Pass ["--help"] as the browser tool's args to list all available commands. Each command is its own args token; common ones: ["open", "<url>", "--browser=chromium"], ["snapshot"], ["find", "<text>"], ["click", "<ref>"], ["fill", "<ref>", "<text>"], ["press", "<key>"], ["screenshot", "--filename", "<dir>/name.png"], ["video-start", "<dir>/name.webm"], ["close"].`
+
+// Playwright CLI reports command and option mistakes as ordinary non-zero exits. Attaching the hint
+// to those errors lets the model recover without a blind retry or a remembered command list. Anchored
+// to line starts so page content echoed in eval or console errors cannot trigger the hint. Matching
+// errors are enriched in place so the original stack and error type are preserved.
+export function playwrightCommandError(error: unknown) {
+  const normalized = error instanceof Error ? error : new Error(String(error))
+  if (/^unknown (command|option):/im.test(normalized.message)) normalized.message += `\n${playwrightCommandHint}`
+  return normalized
+}
+
 async function executePlaywright(args: string[], context: ToolContext) {
   // This prevents project config and inherited Playwright settings from attaching to shared browser state.
   const outputDirectory = playwrightOutputDirectory(args)
@@ -376,7 +389,11 @@ async function executePlaywright(args: string[], context: ToolContext) {
   await writeFile(playwrightConfig, JSON.stringify({ browser: { isolated: true } }))
   const environment = playwrightEnvironment()
   environment.PLAYWRIGHT_MCP_OUTPUT_DIR = outputDirectory
-  return execute("playwright-cli", playwrightCommand(args), context, environment)
+  try {
+    return await execute("playwright-cli", playwrightCommand(args), context, environment)
+  } catch (error) {
+    throw playwrightCommandError(error)
+  }
 }
 
 export function chromiumRequested(args: string[]) {
@@ -791,7 +808,8 @@ export const uiTestingGuidance = `## UI test routing
 
 export const toolDescriptions = {
   open_url: "Open an http(s) URL in the host's platform-default browser. Use only for an explicit request to open a URL for the user, not for browser testing, inspection, or automation.",
-  browser: "Run a Playwright CLI command for automated browser testing and inspection. Pass each token after playwright-cli in args, without a shell or the executable name. For page work, open with --browser=chromium and call snapshot to obtain element refs before interacting. Sessions and optional session labels are isolated per conversation.",
+  browser:
+    `Run a Playwright CLI command for automated browser testing and inspection. Pass each token after playwright-cli in args, without a shell or the executable name. Pass ["--help"] to list all available commands. For page work, open with --browser=chromium and call snapshot to obtain element refs before interacting. Each conversation gets an isolated browser session automatically; the optional session argument only labels an additional browser within the same conversation. Blocked: attach, close-all, kill-all, list, show, state-load, state-save, run-code, install, install-browser, --cdp, --endpoint, --config, --profile, --persistent, --extension.`,
   run_ui_test: "Run a complete temporary TypeScript Playwright Test spec with Brandobot's bundled runner. The test is written only to an isolated temporary directory and is not project or CI validation.",
 }
 

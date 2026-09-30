@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- Browser tool description now advertises `["--help"]` for listing commands, states that sessions are isolated per conversation automatically, and documents the blocked command/flag surface up front.
+- Unknown Playwright CLI command or option errors now append a discovery hint with common commands formatted as args token arrays, so failed guesses are self-correcting.
+
 ## [0.4.0] - 2026-09-29
 
 ### Added
