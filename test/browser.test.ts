@@ -96,9 +96,9 @@ test("browser description advertises discovery, isolation, and the blocked surfa
   expect(description).toContain('["--help"]')
   // Item 4: auto-scoped sessions and the blocked command/flag surface.
   expect(description).toMatch(/isolated browser session automatically/)
-  expect(description).toMatch(/Blocked because they reach external browser state: attach, close-all, kill-all, list, show, state-load, state-save/)
-  expect(description).toMatch(/run-code \(executes local code\)/)
-  expect(description).toMatch(/install\/install-browser/)
+  expect(description).toMatch(
+    /Blocked: attach, close-all, kill-all, list, show, state-load, state-save, run-code, install, install-browser, --cdp, --endpoint, --config, --profile, --persistent, --extension\./,
+  )
 })
 
 test("unknown command and option errors include the discovery hint", () => {
@@ -107,6 +107,11 @@ test("unknown command and option errors include the discovery hint", () => {
   expect(commandError).toBeInstanceOf(Error)
   expect(commandError.message).toContain("Unknown command: screenshots")
   expect(commandError.message).toContain(hint)
+  // The original error is enriched in place, preserving its identity and stack.
+  const stackError = new Error("playwright-cli exited with status 1:\nUnknown command: screenshots")
+  const stack = stackError.stack
+  expect(playwrightCommandError(stackError)).toBe(stackError)
+  expect(stackError.stack).toBe(stack)
   const optionError = playwrightCommandError(new Error("playwright-cli exited with status 1:\nUnknown option: --bogus"))
   expect(optionError.message).toContain(hint)
   const unrelated = new Error("playwright-cli exited with status 1:\nTimeout 30000ms exceeded")

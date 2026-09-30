@@ -374,11 +374,12 @@ export const playwrightCommandHint =
 
 // Playwright CLI reports command and option mistakes as ordinary non-zero exits. Attaching the hint
 // to those errors lets the model recover without a blind retry or a remembered command list. Anchored
-// to line starts so page content echoed in eval or console errors cannot trigger the hint.
+// to line starts so page content echoed in eval or console errors cannot trigger the hint. Matching
+// errors are enriched in place so the original stack and error type are preserved.
 export function playwrightCommandError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error)
-  if (!/^unknown (command|option):/im.test(message)) return error instanceof Error ? error : new Error(message)
-  return new Error(`${message}\n${playwrightCommandHint}`)
+  if (!(error instanceof Error)) return new Error(String(error))
+  if (/^unknown (command|option):/im.test(error.message)) error.message += `\n${playwrightCommandHint}`
+  return error
 }
 
 async function executePlaywright(args: string[], context: ToolContext) {
@@ -808,7 +809,7 @@ export const uiTestingGuidance = `## UI test routing
 export const toolDescriptions = {
   open_url: "Open an http(s) URL in the host's platform-default browser. Use only for an explicit request to open a URL for the user, not for browser testing, inspection, or automation.",
   browser:
-    `Run a Playwright CLI command for automated browser testing and inspection. Pass each token after playwright-cli in args, without a shell or the executable name. Pass ["--help"] to list all available commands. For page work, open with --browser=chromium and call snapshot to obtain element refs before interacting. Each conversation gets an isolated browser session automatically; the optional session argument only labels an additional browser within the same conversation. Blocked because they reach external browser state: attach, close-all, kill-all, list, show, state-load, state-save, --cdp, --endpoint, --config, --profile, --persistent, --extension. Blocked: run-code (executes local code) and install/install-browser (browser installation is managed automatically).`,
+    `Run a Playwright CLI command for automated browser testing and inspection. Pass each token after playwright-cli in args, without a shell or the executable name. Pass ["--help"] to list all available commands. For page work, open with --browser=chromium and call snapshot to obtain element refs before interacting. Each conversation gets an isolated browser session automatically; the optional session argument only labels an additional browser within the same conversation. Blocked: attach, close-all, kill-all, list, show, state-load, state-save, run-code, install, install-browser, --cdp, --endpoint, --config, --profile, --persistent, --extension.`,
   run_ui_test: "Run a complete temporary TypeScript Playwright Test spec with Brandobot's bundled runner. The test is written only to an isolated temporary directory and is not project or CI validation.",
 }
 
