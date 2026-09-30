@@ -377,9 +377,9 @@ export const playwrightCommandHint =
 // to line starts so page content echoed in eval or console errors cannot trigger the hint. Matching
 // errors are enriched in place so the original stack and error type are preserved.
 export function playwrightCommandError(error: unknown) {
-  if (!(error instanceof Error)) return new Error(String(error))
-  if (/^unknown (command|option):/im.test(error.message)) error.message += `\n${playwrightCommandHint}`
-  return error
+  const normalized = error instanceof Error ? error : new Error(String(error))
+  if (/^unknown (command|option):/im.test(normalized.message)) normalized.message += `\n${playwrightCommandHint}`
+  return normalized
 }
 
 async function executePlaywright(args: string[], context: ToolContext) {

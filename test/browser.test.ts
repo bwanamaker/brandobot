@@ -117,6 +117,10 @@ test("unknown command and option errors include the discovery hint", () => {
   const unrelated = new Error("playwright-cli exited with status 1:\nTimeout 30000ms exceeded")
   expect(playwrightCommandError(unrelated)).toBe(unrelated)
   expect(playwrightCommandError("boom").message).toBe("boom")
+  // Non-Error throws are normalized first, so their string form still gets the hint.
+  const thrown = playwrightCommandError("Unknown command: screenshots")
+  expect(thrown).toBeInstanceOf(Error)
+  expect(thrown.message).toContain(hint)
   // The hint only attaches to CLI diagnostics at line start, not page content echoed mid-line.
   const echoed = new Error('playwright-cli exited with status 1:\nError: page reported "unknown command: noop"')
   expect(playwrightCommandError(echoed)).toBe(echoed)
