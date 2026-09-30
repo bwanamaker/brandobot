@@ -13,6 +13,7 @@ import Brandobot, {
 
 const {
   brandobotPlaywrightTestVersion,
+  playwrightCommandError,
   cleanupEphemeralWorkspaces,
   chromiumInstallationComplete,
   chromiumRequested,
@@ -87,6 +88,44 @@ test("browser validates argv and runs Playwright CLI", async () => {
   )
 
   expect(result).toContain("playwright-cli")
+})
+
+test("browser description advertises discovery, isolation, and the blocked surface", () => {
+  const description = Brandobot.toolDescriptions.browser
+  // Item 1: runtime discovery hint.
+  expect(description).toContain('["--help"]')
+  // Item 4: auto-scoped sessions and the blocked command/flag surface.
+  expect(description).toMatch(/isolated browser session automatically/)
+  expect(description).toMatch(/Blocked because they reach external browser state: attach, close-all, kill-all, list, show, state-load, state-save/)
+  expect(description).toMatch(/run-code \(executes local code\)/)
+  expect(description).toMatch(/install\/install-browser/)
+})
+
+test("unknown command and option errors include the discovery hint", () => {
+  const hint = '["--help"]'
+  const commandError = playwrightCommandError(new Error("playwright-cli exited with status 1:\nUnknown command: screenshots"))
+  expect(commandError).toBeInstanceOf(Error)
+  expect(commandError.message).toContain("Unknown command: screenshots")
+  expect(commandError.message).toContain(hint)
+  const optionError = playwrightCommandError(new Error("playwright-cli exited with status 1:\nUnknown option: --bogus"))
+  expect(optionError.message).toContain(hint)
+  const unrelated = new Error("playwright-cli exited with status 1:\nTimeout 30000ms exceeded")
+  expect(playwrightCommandError(unrelated)).toBe(unrelated)
+  expect(playwrightCommandError("boom").message).toBe("boom")
+  // The hint only attaches to CLI diagnostics at line start, not page content echoed mid-line.
+  const echoed = new Error('playwright-cli exited with status 1:\nError: page reported "unknown command: noop"')
+  expect(playwrightCommandError(echoed)).toBe(echoed)
+  const prefixed = new Error("playwright-cli exited with status 1:\nUnknown command: screenshots")
+  expect(playwrightCommandError(prefixed).message).toContain(hint)
+})
+
+test("unknown CLI commands fail with the discovery hint", async () => {
+  const hooks = await Brandobot.server({} as never)
+  const browser = hooks.tool?.browser
+
+  await expect(browser!.execute({ args: ["screenshots"] }, testContext())).rejects.toThrow(
+    /Unknown command: screenshots[\s\S]*\["--help"\]/,
+  )
 })
 
 test("browser validates before installing Chromium", async () => {
