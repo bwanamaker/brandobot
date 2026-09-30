@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here.
 
+## [0.4.0] - 2026-09-29
+
+### Added
+
+- Added a Pi package entry point with `open_url`, `browser`, and `run_ui_test` tools, conversation-scoped browser sessions, and Pi-specific routing guidance.
+- Added Pi installation instructions and Node.js compatibility checks in CI.
+- Added Wrangler configuration for the static site and Workers Previews.
+
+### Changed
+
+- Shared browser and temporary-test execution between OpenCode and Pi using Node.js APIs instead of Bun-only runtime APIs.
+
 ## [0.3.1] - 2026-09-27
 
 ### Added

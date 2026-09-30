@@ -1,7 +1,7 @@
 {
   "name": "@bwanamaker/brandobot",
-  "version": "0.3.1",
-  "description": "An OpenCode plugin that controls browsers through Playwright CLI.",
+  "version": "0.4.0",
+  "description": "Browser automation for OpenCode and Pi through Playwright CLI.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -19,7 +19,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./pi": {
+      "types": "./dist/pi.d.ts",
+      "default": "./dist/pi.js"
     }
+  },
+  "pi": {
+    "extensions": ["./dist/pi.js"]
   },
   "files": [
     "dist",
@@ -30,7 +37,8 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "bun test",
+    "test": "bun test && npm run test:pi",
+    "test:pi": "npm run build && node --test test/pi-node.mjs",
     "prepack": "npm run build"
   },
   "engines": {
@@ -39,6 +47,7 @@
   },
   "keywords": [
     "opencode",
+    "pi-package",
     "plugin",
     "playwright",
     "browser-automation"
@@ -49,11 +58,21 @@
     "@playwright/test": "1.63.0-alpha-2026-08-05"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.87.1",
     "@eslint/js": "^10.0.1",
     "bun-types": "^1.3.9",
     "eslint": "^10.10.0",
     "globals": "^17.12.0",
+    "typebox": "^1.3.27",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": { "optional": true },
+    "typebox": { "optional": true }
   }
 }
